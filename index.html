@@ -195,7 +195,7 @@
 <script>
     const { createApp, ref, computed, watch, onMounted } = Vue;
     
-    // --- 膠囊資料庫 (OL 完整版 + VL 90%) ---
+    // --- 膠囊資料庫 (OL & VL 100% 完整版) ---
     const CAPSULE_DB = {
         OL: { 
             "義式致敬經典": [
@@ -273,7 +273,16 @@
             "工藝精萃咖啡": [
                 "分享杯手沖感咖啡-濃郁強烈"
             ],
-            "咖啡師特調 (待確認)": ["比昂科-畢科洛", "比昂科-多比歐", "比昂科-馥緹", "巧克力風味", "榛果風味", "甜香草風味", "金黃焦糖風味", "冰鎮-異國陽光", "冰鎮-沁涼"] 
+            "咖啡大師特調": [
+                "比昂科皮克洛", 
+                "比昂科多比歐", 
+                "比昂科馥緹", 
+                "烤榛果風味咖啡", 
+                "甜香草風味咖啡", 
+                "金黃焦糖風味咖啡", 
+                "濃郁巧克力風味咖啡", 
+                "甜香草風味咖啡(咖啡因減量版)"
+            ] 
         }
     };
 
@@ -343,7 +352,6 @@
             const makeRecipe = (cap) => { if(confirm(`確定製作? 扣除: ${cap.name}`)) cap.quantity--; };
             
             const getCapsuleColor = (name) => {
-                if(name.includes('星巴克')||name.includes('Starbucks')) return '#007042';
                 if(name.includes('阿佩奇歐')||name.includes('Arpeggio')) return '#382554';
                 if(name.includes('拿波里')) return '#8b0000';
                 if(name.includes('梅絡茲歐')) return '#d8b265';
