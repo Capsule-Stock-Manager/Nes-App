@@ -124,8 +124,8 @@
                     </div>
                     <div class="d-flex align-items-center gap-1">
                         <button @click="cap.quantity+=10" class="btn btn-light btn-sm text-secondary rounded-circle" style="width:32px;height:32px;">+</button>
-                        <button @click="drink(cap)" :disabled="cap.quantity <= 0" class="btn btn-brew btn-sm px-3 fw-bold rounded-pill">{{ cap.quantity > 0 ? '沖煮' : '缺貨' }}</button>
-                        <button @click="remove(cap)" class="btn btn-link text-danger btn-sm px-2">✕</button>
+                        <button @click="drink(cap)" :disabled="cap.quantity <= 0" class="btn btn-brew btn-sm px-3 fw-bold rounded-pill">{{ cap.quantity > 0 ? '萃取' : '缺貨' }}</button>
+                        <button @click="remove(cap)" class="btn btn-light btn-sm text-danger rounded-circle" style="width:32px;height:32px;">✕</button>
                     </div>
                 </div>
             </div>
