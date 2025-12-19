@@ -47,7 +47,7 @@
 <div id="app" class="container py-4" style="max-width: 600px;">
     
     <div class="text-center mb-4">
-        <h2 class="fw-bold text-dark">☕ Nespresso 膠囊管家</h2>
+        <h2 class="fw-bold text-dark">☕ Nespresso 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v2.1</span></h2>
         <small class="text-muted">庫存管理 & 食譜推薦</small>
     </div>
 
@@ -112,19 +112,19 @@
         <div v-else>
             <div v-for="cap in filteredCapsules" :key="cap.id" class="card mb-3 shadow-sm capsule-card bg-white">
                 <div class="card-body d-flex align-items-center justify-content-between py-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="circle shadow-sm" :style="{ backgroundColor: getCapsuleColor(cap.name) }">{{ cap.system === 'OL' ? 'OL' : 'VL' }}</div>
-                        <div>
-                            <h6 class="mb-0 fw-bold">{{ cap.name }}</h6>
-                            <small class="text-muted me-2">剩餘 <span class="fw-bold" :class="cap.quantity<5?'text-danger':'text-dark'">{{ cap.quantity }}</span> 顆</small>
-                            <div v-if="cap.expiry && getFreshness(cap).text" :class="getFreshness(cap).class" class="expiry-badge">
+                    <div class="d-flex align-items-center gap-3 overflow-hidden">
+                        <div class="circle shadow-sm flex-shrink-0" :style="{ backgroundColor: getCapsuleColor(cap.name) }">{{ cap.system === 'OL' ? 'OL' : 'VL' }}</div>
+                        <div class="overflow-hidden">
+                            <h6 class="mb-0 fw-bold text-truncate">{{ cap.name }}</h6>
+                            <small class="text-muted me-2 text-nowrap">剩餘 <span class="fw-bold" :class="cap.quantity<5?'text-danger':'text-dark'">{{ cap.quantity }}</span> 顆</small>
+                            <div v-if="cap.expiry && getFreshness(cap).text" :class="getFreshness(cap).class" class="expiry-badge text-truncate">
                                 {{ getFreshness(cap).text }}
                             </div>
                         </div>
                     </div>
-                    <div class="d-flex align-items-center gap-1">
+                    <div class="d-flex align-items-center gap-1 flex-shrink-0 ms-2">
                         <button @click="cap.quantity+=10" class="btn btn-light btn-sm text-secondary rounded-circle" style="width:32px;height:32px;">+</button>
-                        <button @click="drink(cap)" :disabled="cap.quantity <= 0" class="btn btn-brew btn-sm px-3 fw-bold rounded-pill">{{ cap.quantity > 0 ? '萃取' : '缺貨' }}</button>
+                        <button @click="drink(cap)" :disabled="cap.quantity <= 0" class="btn btn-brew btn-sm px-3 fw-bold rounded-pill text-nowrap">{{ cap.quantity > 0 ? '萃取' : '缺貨' }}</button>
                         <button @click="remove(cap)" class="btn btn-light btn-sm text-danger rounded-circle" style="width:32px;height:32px;">✕</button>
                     </div>
                 </div>
