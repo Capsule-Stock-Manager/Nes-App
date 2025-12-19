@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nespresso 膠囊管家</title>
-    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffffff">
     <link rel="apple-touch-icon" href="icon.png">
@@ -22,7 +21,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        /* 禁止使用者選取文字，讓體驗更像 App */
         body { background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-user-select: none; user-select: none; }
         .capsule-card, .recipe-card, .promo-card, .backup-card { border-radius: 16px; overflow: hidden; border: none; transition: 0.2s; }
         .capsule-card:hover, .recipe-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
@@ -47,8 +45,8 @@
 <div id="app" class="container py-4" style="max-width: 600px;">
     
     <div class="text-center mb-4">
-        <h2 class="fw-bold text-dark">☕ Nespresso 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v2.1</span></h2>
-        <small class="text-muted">庫存管理 & 食譜推薦</small>
+        <h2 class="fw-bold text-dark">☕ Nespresso 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v2.5</span></h2>
+        <small class="text-muted">庫存管理 & 食譜百科</small>
     </div>
 
     <ul class="nav nav-pills nav-fill mb-4 bg-white p-2 rounded-4 shadow-sm">
@@ -76,21 +74,12 @@
                         </optgroup>
                     </select>
                 </div>
-                
                 <div class="col-4">
                     <input v-model.number="newCapsule.quantity" type="number" class="form-control text-center" placeholder="數量">
                 </div>
                 <div class="col-8">
-                    <input 
-                        v-model="newCapsule.expiry" 
-                        type="text" 
-                        class="form-control text-secondary text-center" 
-                        placeholder="有效日期"
-                        onfocus="(this.type='date')" 
-                        onblur="(this.value ? this.type='date' : this.type='text')"
-                    >
+                    <input v-model="newCapsule.expiry" type="text" class="form-control text-secondary text-center" placeholder="有效日期" onfocus="(this.type='date')" onblur="(this.value ? this.type='date' : this.type='text')">
                 </div>
-
                 <transition name="custom-input">
                     <div class="col-12" v-if="newCapsule.selectedName === 'CUSTOM'">
                         <input v-model="newCapsule.customInput" type="text" class="form-control border-primary" placeholder="請輸入膠囊名稱">
@@ -136,18 +125,8 @@
                 <h5 class="fw-bold text-dark mb-2">🛍️ 膠囊庫存不足了嗎？</h5>
                 <p class="text-muted small mb-4">選擇您的機型，前往 Nespresso 蝦皮官方旗艦店補貨。</p>
                 <div class="d-grid gap-2">
-                    <a href="https://tw.shp.ee/pJUMmtp" 
-                       target="_blank" 
-                       class="btn btn-shopee rounded-pill py-2 shadow-sm"
-                       onclick="gtag('event', 'click_shopee_ol', {'event_category': 'conversion', 'event_label': 'inventory_page'});">
-                        前往 Original (OL) 賣場
-                    </a>
-                    <a href="https://tw.shp.ee/uyGJiP5" 
-                       target="_blank" 
-                       class="btn btn-shopee rounded-pill py-2 shadow-sm"
-                       onclick="gtag('event', 'click_shopee_vl', {'event_category': 'conversion', 'event_label': 'inventory_page'});">
-                        前往 Vertuo (VL) 賣場
-                    </a>
+                    <a href="https://tw.shp.ee/pJUMmtp" target="_blank" class="btn btn-shopee rounded-pill py-2 shadow-sm" onclick="gtag('event', 'click_shopee_ol', {'event_category': 'conversion', 'event_label': 'inventory_page'});">前往 Original (OL) 賣場</a>
+                    <a href="https://tw.shp.ee/uyGJiP5" target="_blank" class="btn btn-shopee rounded-pill py-2 shadow-sm" onclick="gtag('event', 'click_shopee_vl', {'event_category': 'conversion', 'event_label': 'inventory_page'});">前往 Vertuo (VL) 賣場</a>
                 </div>
             </div>
         </div>
@@ -167,8 +146,15 @@
             </div>
         </div>
 
+        <div class="d-flex gap-2 mb-3 overflow-auto">
+            <button @click="recipeFilter='ALL'" class="btn btn-sm rounded-pill px-3" :class="recipeFilter==='ALL' ? 'btn-dark' : 'btn-outline-dark'">全部</button>
+            <button @click="recipeFilter='HOT'" class="btn btn-sm rounded-pill px-3" :class="recipeFilter==='HOT' ? 'btn-danger' : 'btn-outline-danger'">🔥 熱飲</button>
+            <button @click="recipeFilter='COLD'" class="btn btn-sm rounded-pill px-3" :class="recipeFilter==='COLD' ? 'btn-info' : 'btn-outline-info'">❄️ 冷飲</button>
+            <button @click="recipeFilter='SPECIAL'" class="btn btn-sm rounded-pill px-3" :class="recipeFilter==='SPECIAL' ? 'btn-warning' : 'btn-outline-warning'">🍹 特調</button>
+        </div>
+
         <div class="row g-3">
-            <div class="col-12" v-for="(recipe, rIndex) in recipeStatusList" :key="rIndex">
+            <div class="col-12" v-for="(recipe, rIndex) in filteredRecipes" :key="rIndex">
                 <div class="card recipe-card shadow-sm h-100 bg-white">
                     <div class="card-body position-relative">
                         <button v-if="recipe.isCustom" @click="deleteRecipe(recipe.id)" class="btn btn-sm text-secondary position-absolute top-0 end-0 m-2">&times;</button>
@@ -186,12 +172,7 @@
                         <div v-else>
                             <div class="p-2 bg-danger bg-opacity-10 rounded mt-3">
                                 <small class="text-danger fw-bold">推薦使用：</small><small class="text-secondary">{{ recipe.recommended.join("、") }}</small>
-                                <a href="https://tw.shp.ee/pJUMmtp" 
-                                   target="_blank" 
-                                   class="d-block text-end mt-2 text-danger small text-decoration-none fw-bold"
-                                   onclick="gtag('event', 'click_shopee', {'event_category': 'conversion', 'event_label': 'recipe_suggestion'});">
-                                    去賣場找找 >
-                                </a>
+                                <a href="https://tw.shp.ee/pJUMmtp" target="_blank" class="d-block text-end mt-2 text-danger small text-decoration-none fw-bold" onclick="gtag('event', 'click_shopee', {'event_category': 'conversion', 'event_label': 'recipe_suggestion'});">去賣場找找 ></a>
                             </div>
                         </div>
                     </div>
@@ -232,66 +213,48 @@
 <script>
     const { createApp, ref, computed, watch, onMounted } = Vue;
     
-    // --- 膠囊資料庫 (蝦皮販售版) ---
     const CAPSULE_DB = {
-        OL: { 
-            "義式致敬經典": ["義式經典阿佩奇歐", "義式經典芮斯崔朵", "義式經典羅馬", "義式經典莉梵朵"], 
-            "濃縮/特調": ["巴黎濃縮咖啡", "沃魯托", "科斯", "特濃可塔朵", "溫和奇里奧", "濃醇蘇克洛"], 
-            "單一產區": ["單一產區臻選哥倫比亞", "單一產區臻選尼加拉瓜", "單一產區臻選印尼"],
-            "環遊世界": ["環遊世界開普敦大杯咖啡", "環遊世界東京大杯咖啡", "環遊世界維也納大杯咖啡", "斯德哥爾摩大杯咖啡"], 
-            "風味咖啡": ["巧克力風味咖啡", "焦糖風味咖啡"]
-        },
-        VL: { 
-            "經典咖啡": ["印坦索", "斯托米歐", "奧緹奇歐", "迪芙里托", "奧達奇歐", "梅絡茲歐", "索莉里歐", "芙塔朵"], 
-            "雙份濃縮": ["雙份濃縮咖啡濃醇蘇克洛", "雙倍濃縮咖啡-溫和奇里奧"], 
-            "單一產區": ["單一產區臻選墨西哥", "單一產區臻選哥倫比亞", "單一產區臻選哥斯大黎加"], 
-            "風味/特調": ["比昂科馥緹", "金黃焦糖風味咖啡", "焦糖餅乾風味咖啡", "烤榛果風味咖啡"], 
-            "低咖啡因": ["咖啡因少量版"]
-        }
+        OL: { "義式致敬經典": ["義式經典阿佩奇歐", "義式經典芮斯崔朵", "義式經典羅馬", "義式經典莉梵朵"], "濃縮/特調": ["巴黎濃縮咖啡", "沃魯托", "科斯", "特濃可塔朵", "溫和奇里奧", "濃醇蘇克洛"], "單一產區": ["單一產區臻選哥倫比亞", "單一產區臻選尼加拉瓜", "單一產區臻選印尼"], "環遊世界": ["環遊世界開普敦大杯咖啡", "環遊世界東京大杯咖啡", "環遊世界維也納大杯咖啡", "斯德哥爾摩大杯咖啡"], "風味咖啡": ["巧克力風味咖啡", "焦糖風味咖啡"] },
+        VL: { "經典咖啡": ["印坦索", "斯托米歐", "奧緹奇歐", "迪芙里托", "奧達奇歐", "梅絡茲歐", "索莉里歐", "芙塔朵"], "雙份濃縮": ["雙份濃縮咖啡濃醇蘇克洛", "雙倍濃縮咖啡-溫和奇里奧"], "單一產區": ["單一產區臻選墨西哥", "單一產區臻選哥倫比亞", "單一產區臻選哥斯大黎加"], "風味/特調": ["比昂科馥緹", "金黃焦糖風味咖啡", "焦糖餅乾風味咖啡", "烤榛果風味咖啡"], "低咖啡因": ["咖啡因少量版"] }
     };
 
-    // --- 官方食譜 (蝦皮販售版) ---
+    // --- 擴充至 30 種食譜，並加上分類 (type) ---
     const OFFICIAL_RECIPES = [
-        { 
-            id: 'off_1', 
-            name: "經典冰拿鐵", 
-            icon: "🧊", 
-            desc: "牛奶與濃縮咖啡結合。", 
-            ingredients: ["冰塊", "150ml 牛奶"], 
-            recommended: ["義式經典阿佩奇歐", "濃醇蘇克洛", "雙份濃縮咖啡濃醇蘇克洛", "義式經典羅馬"] 
-        },
-        { 
-            id: 'off_2', 
-            name: "西西里檸檬氣泡", 
-            icon: "🍋", 
-            desc: "清爽氣泡感。", 
-            ingredients: ["氣泡水", "檸檬汁", "冰塊", "糖漿"], 
-            recommended: ["科斯", "沃魯托", "環遊世界東京大杯咖啡", "索莉里歐"] 
-        },
-        { 
-            id: 'off_3', 
-            name: "焦糖瑪奇朵", 
-            icon: "🍮", 
-            desc: "甜蜜焦糖香氣。", 
-            ingredients: ["焦糖醬", "熱牛奶", "奶泡"], 
-            recommended: ["焦糖風味咖啡", "金黃焦糖風味咖啡", "沃魯托"] 
-        },
-        { 
-            id: 'off_4', 
-            name: "燕麥奶拿鐵", 
-            icon: "🌾", 
-            desc: "穀物香氣。", 
-            ingredients: ["燕麥奶"], 
-            recommended: ["溫和奇里奧", "雙倍濃縮咖啡-溫和奇里奧", "濃醇蘇克洛", "特濃可塔朵", "比昂科馥緹", "義式經典阿佩奇歐"] 
-        },
-        { 
-            id: 'off_5', 
-            name: "濃縮康寶藍", 
-            icon: "☁️", 
-            desc: "覆蓋鮮奶油。", 
-            ingredients: ["鮮奶油", "可可粉"], 
-            recommended: ["義式經典芮斯崔朵", "義式經典阿佩奇歐", "特濃可塔朵", "迪芙里托", "奧緹奇歐"] 
-        }
+        // 🔥 熱飲 (HOT)
+        { id: '1', type: 'HOT', name: "經典濃縮 (Espresso)", icon: "☕", desc: "最純粹的義式享受。", ingredients: ["40ml 濃縮咖啡"], recommended: ["義式經典阿佩奇歐", "義式經典芮斯崔朵", "巴黎濃縮咖啡", "印坦索"] },
+        { id: '2', type: 'HOT', name: "熱美式 (Americano)", icon: "☕", desc: "熱水稀釋濃縮咖啡。", ingredients: ["120ml 熱水", "40ml 濃縮咖啡"], recommended: ["環遊世界開普敦大杯咖啡", "斯托米歐", "奧達奇歐"] },
+        { id: '3', type: 'HOT', name: "熱拿鐵 (Latte)", icon: "🥛", desc: "絲滑牛奶與濃縮的完美比例。", ingredients: ["150ml 熱牛奶", "奶泡", "40ml 濃縮咖啡"], recommended: ["濃醇蘇克洛", "義式經典羅馬", "梅絡茲歐", "比昂科馥緹"] },
+        { id: '4', type: 'HOT', name: "卡布奇諾 (Cappuccino)", icon: "☁️", desc: "綿密厚奶泡的經典。", ingredients: ["100ml 熱牛奶", "厚奶泡", "40ml 濃縮咖啡"], recommended: ["義式經典莉梵朵", "科斯", "雙份濃縮咖啡濃醇蘇克洛"] },
+        { id: '5', type: 'HOT', name: "馥如白 (Flat White)", icon: "🦢", desc: "更濃郁的奶咖體驗。", ingredients: ["100ml 熱牛奶", "薄奶泡", "80ml 濃縮咖啡(2顆)"], recommended: ["特濃可塔朵", "義式經典阿佩奇歐", "雙倍濃縮咖啡-溫和奇里奧"] },
+        { id: '6', type: 'HOT', name: "焦糖瑪奇朵", icon: "🍮", desc: "甜蜜焦糖層次感。", ingredients: ["焦糖醬", "熱牛奶", "奶泡"], recommended: ["焦糖風味咖啡", "金黃焦糖風味咖啡", "沃魯托"] },
+        { id: '7', type: 'HOT', name: "燕麥奶拿鐵", icon: "🌾", desc: "穀物香氣與咖啡的結合。", ingredients: ["燕麥奶"], recommended: ["溫和奇里奧", "特濃可塔朵", "比昂科馥緹"] },
+        { id: '8', type: 'HOT', name: "摩卡咖啡 (Mocha)", icon: "🍫", desc: "巧克力與咖啡的饗宴。", ingredients: ["巧克力醬/粉", "熱牛奶", "濃縮咖啡"], recommended: ["巧克力風味咖啡", "義式經典阿佩奇歐", "印坦索"] },
+        { id: '9', type: 'HOT', name: "維也納咖啡", icon: "🎻", desc: "覆蓋鮮奶油的奢華口感。", ingredients: ["發泡鮮奶油", "大杯咖啡"], recommended: ["環遊世界維也納大杯咖啡", "環遊世界東京大杯咖啡"] },
+        { id: '10', type: 'HOT', name: "黑糖拿鐵", icon: "🍬", desc: "黑糖獨特的焦香甜味。", ingredients: ["黑糖粉", "熱牛奶", "奶泡"], recommended: ["義式經典羅馬", "哥倫比亞"] },
+        { id: '11', type: 'HOT', name: "榛果拿鐵", icon: "🌰", desc: "堅果香氣的溫暖。", ingredients: ["榛果糖漿", "熱牛奶"], recommended: ["烤榛果風味咖啡", "沃魯托"] },
+        { id: '12', type: 'HOT', name: "肉桂卡布奇諾", icon: "🍂", desc: "肉桂粉點綴的香氣。", ingredients: ["肉桂粉", "熱牛奶", "厚奶泡"], recommended: ["單一產區臻選墨西哥", "環遊世界斯德哥爾摩大杯咖啡"] },
+        { id: '13', type: 'HOT', name: "防彈咖啡", icon: "🛡️", desc: "生酮飲食首選。", ingredients: ["無鹽奶油", "MCT油", "黑咖啡"], recommended: ["斯托米歐", "奧達奇歐", "環遊世界開普敦大杯咖啡"] },
+        
+        // ❄️ 冷飲 (COLD)
+        { id: '14', type: 'COLD', name: "經典冰拿鐵", icon: "🧊", desc: "冰涼順口的牛奶咖啡。", ingredients: ["冰塊", "150ml 牛奶"], recommended: ["義式經典阿佩奇歐", "雙份濃縮咖啡濃醇蘇克洛", "義式經典羅馬"] },
+        { id: '15', type: 'COLD', name: "冰美式", icon: "🥤", desc: "清爽解渴。", ingredients: ["冰塊", "150ml 冷水", "濃縮咖啡"], recommended: ["單一產區臻選印尼", "奧達奇歐", "芙塔朵"] },
+        { id: '16', type: 'COLD', name: "西西里檸檬氣泡", icon: "🍋", desc: "酸甜氣泡感，夏天必備。", ingredients: ["氣泡水", "檸檬汁", "冰塊", "糖漿"], recommended: ["科斯", "沃魯托", "環遊世界東京大杯咖啡", "索莉里歐"] },
+        { id: '17', type: 'COLD', name: "通寧咖啡 (Espresso Tonic)", icon: "🍸", desc: "通寧水的苦甜氣泡。", ingredients: ["通寧水", "冰塊", "濃縮咖啡"], recommended: ["環遊世界東京大杯咖啡", "科斯", "單一產區臻選尼加拉瓜"] },
+        { id: '18', type: 'COLD', name: "冰搖濃縮 (Shakerato)", icon: "🌪️", desc: "搖出綿密泡沫的冰咖啡。", ingredients: ["冰塊", "糖漿", "雪克杯搖勻"], recommended: ["義式經典阿佩奇歐", "義式經典芮斯崔朵"] },
+        { id: '19', type: 'COLD', name: "海鹽奶蓋咖啡", icon: "🌊", desc: "鹹甜交織的厚實奶蓋。", ingredients: ["鮮奶油", "海鹽", "冰咖啡"], recommended: ["迪芙里托", "梅絡茲歐"] },
+        { id: '20', type: 'COLD', name: "柳橙冰美式", icon: "🍊", desc: "果香四溢的清爽口感。", ingredients: ["柳橙汁", "冰塊", "濃縮咖啡"], recommended: ["單一產區臻選哥倫比亞", "索莉里歐"] },
+        { id: '21', type: 'COLD', name: "椰香拿鐵", icon: "🥥", desc: "熱帶風情。", ingredients: ["椰奶", "冰塊", "濃縮咖啡"], recommended: ["單一產區臻選印尼", "比昂科馥緹"] },
+        { id: '22', type: 'COLD', name: "冰鎮薄荷拿鐵", icon: "🌿", desc: "沁涼薄荷香氣。", ingredients: ["薄荷糖漿", "牛奶", "冰塊"], recommended: ["科斯", "沃魯托"] },
+
+        // 🍹 特調/甜點 (SPECIAL)
+        { id: '23', type: 'SPECIAL', name: "阿法奇朵 (Affogato)", icon: "🍨", desc: "濃縮咖啡淋在香草冰淇淋上。", ingredients: ["香草冰淇淋", "40ml 濃縮咖啡"], recommended: ["義式經典阿佩奇歐", "義式經典芮斯崔朵", "巧克力風味咖啡"] },
+        { id: '24', type: 'SPECIAL', name: "濃縮康寶藍", icon: "☁️", desc: "鮮奶油點綴的濃縮。", ingredients: ["鮮奶油", "可可粉"], recommended: ["義式經典芮斯崔朵", "特濃可塔朵"] },
+        { id: '25', type: 'SPECIAL', name: "愛爾蘭咖啡", icon: "🥃", desc: "微醺的大人味 (含酒精)。", ingredients: ["威士忌", "鮮奶油", "紅糖"], recommended: ["斯托米歐", "環遊世界斯德哥爾摩大杯咖啡"] },
+        { id: '26', type: 'SPECIAL', name: "咖啡馬丁尼", icon: "🍸", desc: "經典咖啡調酒 (含酒精)。", ingredients: ["伏特加", "咖啡酒", "冰塊"], recommended: ["義式經典芮斯崔朵", "義式經典阿佩奇歐"] },
+        { id: '27', type: 'SPECIAL', name: "提拉米蘇拿鐵", icon: "🍰", desc: "喝的甜點。", ingredients: ["馬斯卡彭起司醬", "可可粉", "手指餅乾"], recommended: ["巧克力風味咖啡", "義式經典羅馬"] },
+        { id: '28', type: 'SPECIAL', name: "棉花糖可可咖啡", icon: "🍡", desc: "療癒系熱飲。", ingredients: ["小棉花糖", "巧克力醬", "熱牛奶"], recommended: ["巧克力風味咖啡", "金黃焦糖風味咖啡"] },
+        { id: '29', type: 'SPECIAL', name: "鴛鴦咖啡", icon: "🇭🇰", desc: "港式經典，茶咖交融。", ingredients: ["紅茶包", "煉乳/淡奶", "熱水"], recommended: ["環遊世界開普敦大杯咖啡", "印坦索"] },
+        { id: '30', type: 'SPECIAL', name: "焦糖餅乾拿鐵", icon: "🍪", desc: "搭配蓮花餅乾的絕配。", ingredients: ["焦糖餅乾碎", "焦糖醬", "牛奶"], recommended: ["焦糖餅乾風味咖啡", "焦糖風味咖啡"] }
     ];
 
     createApp({
@@ -303,6 +266,7 @@
             const newRecipe = ref({ name: '', desc: '', ingredients: '', keywords: '' });
             const currentView = ref('INVENTORY');
             const filter = ref('ALL');
+            const recipeFilter = ref('ALL');
             const copyBtnText = ref('📋 複製');
             const restoreInput = ref('');
 
@@ -329,7 +293,6 @@
                 const existing = capsules.value.find(c => c.name === finalName && c.system === newCapsule.value.system);
                 if (existing) {
                     existing.quantity += newCapsule.value.quantity;
-                    // 如果使用者有輸入日期，就更新這筆資料的到期日 (更新為最新的)
                     if (newCapsule.value.expiry) existing.expiry = newCapsule.value.expiry;
                 } else {
                     capsules.value.push({ 
@@ -337,14 +300,10 @@
                         system: newCapsule.value.system, 
                         name: finalName, 
                         quantity: newCapsule.value.quantity,
-                        expiry: newCapsule.value.expiry || '' // 儲存日期
+                        expiry: newCapsule.value.expiry || '' 
                     });
                 }
-                
-                // 重置輸入框，但保留系統選擇，方便連續輸入
-                newCapsule.value.selectedName = ''; 
-                newCapsule.value.customInput = '';
-                newCapsule.value.expiry = '';
+                newCapsule.value.selectedName = ''; newCapsule.value.customInput = ''; newCapsule.value.expiry = '';
             };
             
             const filteredCapsules = computed(() => filter.value === 'ALL' ? capsules.value : capsules.value.filter(c => c.system === filter.value));
@@ -353,7 +312,7 @@
 
             const addRecipe = () => {
                 if (!newRecipe.value.name || !newRecipe.value.keywords) return alert('請填寫食譜名稱與關鍵字');
-                customRecipes.value.push({ id: Date.now(), name: newRecipe.value.name, icon: "✨", desc: newRecipe.value.desc || "我的特調", ingredients: newRecipe.value.ingredients.split(/[,，]/).map(s=>s.trim()).filter(s=>s), recommended: newRecipe.value.keywords.split(/[,，]/).map(s=>s.trim()).filter(s=>s), isCustom: true });
+                customRecipes.value.push({ id: Date.now(), type: 'SPECIAL', name: newRecipe.value.name, icon: "✨", desc: newRecipe.value.desc || "我的特調", ingredients: newRecipe.value.ingredients.split(/[,，]/).map(s=>s.trim()).filter(s=>s), recommended: newRecipe.value.keywords.split(/[,，]/).map(s=>s.trim()).filter(s=>s), isCustom: true });
                 newRecipe.value = { name: '', desc: '', ingredients: '', keywords: '' }; showCreateRecipe.value = false; alert('食譜建立成功！');
             };
             const deleteRecipe = (id) => { if(confirm('確定刪除?')) customRecipes.value = customRecipes.value.filter(r => r.id !== id); };
@@ -364,6 +323,13 @@
                     return { ...recipe, canMake: !!match, matchCapsule: match || null };
                 });
             });
+
+            // 食譜分類篩選邏輯
+            const filteredRecipes = computed(() => {
+                if (recipeFilter.value === 'ALL') return recipeStatusList.value;
+                return recipeStatusList.value.filter(r => r.type === recipeFilter.value);
+            });
+
             const makeRecipe = (cap) => { if(confirm(`確定製作? 扣除: ${cap.name}`)) cap.quantity--; };
             
             const getCapsuleColor = (name) => {
@@ -374,14 +340,12 @@
                 return colors[name.length % colors.length];
             };
 
-            // --- 新增：計算新鮮度 (修正為 29 天) ---
             const getFreshness = (cap) => {
                 if (!cap.expiry) return { text: '', class: '' };
                 const today = new Date();
                 const exp = new Date(cap.expiry);
                 const diffTime = exp - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
                 if (diffDays < 0) return { text: `🚫 已過期 (${Math.abs(diffDays)}天)`, class: 'bg-danger text-white' };
                 if (diffDays <= 29) return { text: `⚠️ 盡快飲用 (剩${diffDays}天)`, class: 'bg-warning text-dark' };
                 return { text: `📅 ${cap.expiry.replace(/-/g, '/')}`, class: 'bg-light text-muted border' };
@@ -389,40 +353,11 @@
 
             const backupCode = computed(() => { try { return btoa(unescape(encodeURIComponent(JSON.stringify({capsules: capsules.value, recipes: customRecipes.value})))); } catch(e){ return "Error"; }});
             
-            const copyBackup = () => { 
-                navigator.clipboard.writeText(backupCode.value).then(() => { 
-                    copyBtnText.value = '✅ 已複製！'; 
-                    setTimeout(() => copyBtnText.value = '📋 複製', 2000); 
-                }); 
-            };
+            const copyBackup = () => { navigator.clipboard.writeText(backupCode.value).then(() => { copyBtnText.value = '✅ 已複製！'; setTimeout(() => copyBtnText.value = '📋 複製', 2000); }); };
+            const shareCode = async () => { if (navigator.share) { try { await navigator.share({ title: '我的膠囊庫存代碼', text: backupCode.value }); alert('分享成功！'); } catch (err) { console.log('分享取消'); } } else { alert('您的瀏覽器不支援原生分享，請使用複製按鈕。'); } };
+            const restoreData = () => { if(!restoreInput.value) return; if(confirm('警告：這將覆蓋現有資料！請確認是否繼續？')) { try { const data = JSON.parse(decodeURIComponent(escape(atob(restoreInput.value)))); if(Array.isArray(data)) capsules.value = data; else { if(data.capsules) capsules.value = data.capsules; if(data.recipes) customRecipes.value = data.recipes; } alert('資料同步成功！'); restoreInput.value = ''; currentView.value = 'INVENTORY'; } catch(e) { alert('無效的代碼，請重新複製'); } } };
 
-            const shareCode = async () => {
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: '我的膠囊庫存代碼',
-                            text: backupCode.value,
-                        });
-                        alert('分享成功！');
-                    } catch (err) {
-                        console.log('分享取消');
-                    }
-                } else {
-                    alert('您的瀏覽器不支援原生分享，請使用複製按鈕。');
-                }
-            };
-
-            const restoreData = () => {
-                if(!restoreInput.value) return;
-                if(confirm('警告：這將覆蓋現有資料！請確認是否繼續？')) {
-                    try { const data = JSON.parse(decodeURIComponent(escape(atob(restoreInput.value))));
-                        if(Array.isArray(data)) capsules.value = data; else { if(data.capsules) capsules.value = data.capsules; if(data.recipes) customRecipes.value = data.recipes; }
-                        alert('資料同步成功！'); restoreInput.value = ''; currentView.value = 'INVENTORY';
-                    } catch(e) { alert('無效的代碼，請重新複製'); }
-                }
-            };
-
-            return { capsules, newCapsule, currentView, filter, currentSystemList, addCapsule, filteredCapsules, drink, remove, recipeStatusList, makeRecipe, getCapsuleColor, backupCode, copyBtnText, copyBackup, shareCode, restoreInput, restoreData, showCreateRecipe, newRecipe, addRecipe, deleteRecipe, getFreshness };
+            return { capsules, newCapsule, currentView, filter, recipeFilter, currentSystemList, addCapsule, filteredCapsules, filteredRecipes, drink, remove, makeRecipe, getCapsuleColor, backupCode, copyBtnText, copyBackup, shareCode, restoreInput, restoreData, showCreateRecipe, newRecipe, addRecipe, deleteRecipe, getFreshness };
         }
     }).mount('#app');
 </script>
