@@ -81,7 +81,14 @@
                     <input v-model.number="newCapsule.quantity" type="number" class="form-control text-center" placeholder="數量">
                 </div>
                 <div class="col-8">
-                    <input v-model="newCapsule.expiry" type="date" class="form-control text-secondary" placeholder="賞味期限(選填)">
+                    <input 
+                        v-model="newCapsule.expiry" 
+                        type="text" 
+                        class="form-control text-secondary text-center" 
+                        placeholder="有效日期"
+                        onfocus="(this.type='date')" 
+                        onblur="(this.value ? this.type='date' : this.type='text')"
+                    >
                 </div>
 
                 <transition name="custom-input">
