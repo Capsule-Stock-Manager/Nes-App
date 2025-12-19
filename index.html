@@ -39,6 +39,7 @@
         .custom-input-enter-active, .custom-input-leave-active { transition: all 0.3s ease; }
         .custom-input-enter-from, .custom-input-leave-to { opacity: 0; transform: translateY(-10px); }
         .backup-textarea { font-family: monospace; font-size: 12px; background: #f8f9fa; color: #666; }
+        .expiry-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -53,20 +54,20 @@
     <ul class="nav nav-pills nav-fill mb-4 bg-white p-2 rounded-4 shadow-sm">
         <li class="nav-item"><a class="nav-link rounded-pill" :class="{active: currentView==='INVENTORY'}" @click="currentView='INVENTORY'" href="#">📊 庫存</a></li>
         <li class="nav-item"><a class="nav-link rounded-pill" :class="{active: currentView==='RECIPES'}" @click="currentView='RECIPES'" href="#">🍹 食譜</a></li>
-        <li class="nav-item"><a class="nav-link rounded-pill" :class="{active: currentView==='BACKUP'}" @click="currentView='BACKUP'" href="#">☁️ 備份</a></li>
+        <li class="nav-item"><a class="nav-link rounded-pill" :class="{active: currentView==='SYNC'}" @click="currentView='SYNC'" href="#">☁️ 同步</a></li>
     </ul>
 
     <div v-if="currentView === 'INVENTORY'">
         <div class="card p-3 mb-4 shadow-sm bg-white">
             <h6 class="card-title fw-bold text-secondary mb-3">📦 快速進貨</h6>
             <div class="row g-2">
-                <div class="col-3">
+                <div class="col-4">
                     <select v-model="newCapsule.system" class="form-select text-center fw-bold">
                         <option value="OL">OL</option>
                         <option value="VL">VL</option>
                     </select>
                 </div>
-                <div class="col-6">
+                <div class="col-8">
                     <select v-model="newCapsule.selectedName" class="form-select">
                         <option value="CUSTOM">➕ 自行輸入 (新口味)</option>
                         <option disabled>──────────</option>
@@ -75,9 +76,14 @@
                         </optgroup>
                     </select>
                 </div>
-                <div class="col-3">
+                
+                <div class="col-4">
                     <input v-model.number="newCapsule.quantity" type="number" class="form-control text-center" placeholder="數量">
                 </div>
+                <div class="col-8">
+                    <input v-model="newCapsule.expiry" type="date" class="form-control text-secondary" placeholder="賞味期限(選填)">
+                </div>
+
                 <transition name="custom-input">
                     <div class="col-12" v-if="newCapsule.selectedName === 'CUSTOM'">
                         <input v-model="newCapsule.customInput" type="text" class="form-control border-primary" placeholder="請輸入膠囊名稱">
@@ -101,7 +107,13 @@
                 <div class="card-body d-flex align-items-center justify-content-between py-3">
                     <div class="d-flex align-items-center gap-3">
                         <div class="circle shadow-sm" :style="{ backgroundColor: getCapsuleColor(cap.name) }">{{ cap.system === 'OL' ? 'OL' : 'VL' }}</div>
-                        <div><h6 class="mb-0 fw-bold">{{ cap.name }}</h6><small class="text-muted">剩餘 <span class="fw-bold" :class="cap.quantity<5?'text-danger':'text-dark'">{{ cap.quantity }}</span> 顆</small></div>
+                        <div>
+                            <h6 class="mb-0 fw-bold">{{ cap.name }}</h6>
+                            <small class="text-muted me-2">剩餘 <span class="fw-bold" :class="cap.quantity<5?'text-danger':'text-dark'">{{ cap.quantity }}</span> 顆</small>
+                            <div v-if="cap.expiry && getFreshness(cap).text" :class="getFreshness(cap).class" class="expiry-badge">
+                                {{ getFreshness(cap).text }}
+                            </div>
+                        </div>
                     </div>
                     <div class="d-flex align-items-center gap-1">
                         <button @click="cap.quantity+=10" class="btn btn-light btn-sm text-secondary rounded-circle" style="width:32px;height:32px;">+</button>
@@ -181,28 +193,31 @@
         </div>
     </div>
 
-    <div v-if="currentView === 'BACKUP'">
+    <div v-if="currentView === 'SYNC'">
         <div class="card backup-card shadow-sm bg-white mb-4">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">📤 備份資料</h5>
-                <textarea class="form-control backup-textarea mb-2" rows="3" readonly :value="backupCode"></textarea>
-                <button @click="copyBackup" class="btn btn-outline-dark w-100">{{ copyBtnText }}</button>
+                <h5 class="fw-bold mb-3">📤 產生共享代碼</h5>
+                <p class="small text-muted">將此代碼分享給家人，輸入後即可同步您的庫存狀態。</p>
+                <textarea class="form-control backup-textarea mb-2" rows="3" readonly :value="backupCode" id="shareCodeArea"></textarea>
+                <div class="d-flex gap-2">
+                    <button @click="copyBackup" class="btn btn-outline-dark flex-grow-1">{{ copyBtnText }}</button>
+                    <button @click="shareCode" class="btn btn-success fw-bold flex-grow-1">📤 分享給家人</button>
+                </div>
             </div>
         </div>
         <div class="card backup-card shadow-sm bg-white border border-warning">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">📥 還原資料</h5>
-                <textarea v-model="restoreInput" class="form-control backup-textarea mb-2" rows="3" placeholder="貼上代碼..."></textarea>
-                <button @click="restoreData" class="btn btn-warning w-100 fw-bold" :disabled="!restoreInput">開始還原</button>
+                <h5 class="fw-bold mb-3">📥 輸入共享代碼</h5>
+                <p class="small text-muted">警告：輸入後將會 **覆蓋** 您目前的庫存資料。</p>
+                <textarea v-model="restoreInput" class="form-control backup-textarea mb-2" rows="3" placeholder="請貼上代碼..."></textarea>
+                <button @click="restoreData" class="btn btn-warning w-100 fw-bold" :disabled="!restoreInput">🔄 開始同步</button>
             </div>
         </div>
         <div class="text-center mt-4">
-            <a href="https://tw.shp.ee/pJUMmtp" 
-               target="_blank" 
-               class="btn btn-link text-muted small"
-               onclick="gtag('event', 'click_shopee', {'event_category': 'conversion', 'event_label': 'backup_page'});">
-               前往 Nespresso 蝦皮旗艦店逛逛
-            </a>
+            <div class="text-center mt-5 mb-3 text-muted" style="font-size: 10px;">
+                <p class="mb-1">本網站為 Nespresso 愛好者開發之個人練習專案 (Fan Project)。</p>
+                <p class="mb-0">所有商標與產品名稱版權均歸 <a href="https://www.nespresso.com/" target="_blank" class="text-decoration-none text-muted">Nespresso</a> 原廠所有。<br>本工具不代表官方立場，亦未與其有商業合作關係。</p>
+            </div>
         </div>
     </div>
 </div>
@@ -276,19 +291,19 @@
         setup() {
             const capsules = ref([]);
             const customRecipes = ref([]);
-            const newCapsule = ref({ system: 'OL', selectedName: '', customInput: '', quantity: 10 });
+            const newCapsule = ref({ system: 'OL', selectedName: '', customInput: '', quantity: 10, expiry: '' });
             const showCreateRecipe = ref(false);
             const newRecipe = ref({ name: '', desc: '', ingredients: '', keywords: '' });
             const currentView = ref('INVENTORY');
             const filter = ref('ALL');
-            const copyBtnText = ref('📋 複製代碼');
+            const copyBtnText = ref('📋 複製');
             const restoreInput = ref('');
 
             onMounted(() => {
                 const savedData = localStorage.getItem('nespresso_cn_v1');
                 const savedRecipes = localStorage.getItem('nespresso_custom_recipes');
                 if (savedData) capsules.value = JSON.parse(savedData);
-                else capsules.value = [{ id: 1, system: 'OL', name: '義式經典阿佩奇歐', quantity: 5 }, { id: 2, system: 'VL', name: '梅絡茲歐', quantity: 12 }];
+                else capsules.value = [{ id: 1, system: 'OL', name: '義式經典阿佩奇歐', quantity: 5, expiry: '' }, { id: 2, system: 'VL', name: '梅絡茲歐', quantity: 12, expiry: '' }];
                 if (savedRecipes) customRecipes.value = JSON.parse(savedRecipes);
             });
 
@@ -296,6 +311,7 @@
             watch(customRecipes, (newVal) => localStorage.setItem('nespresso_custom_recipes', JSON.stringify(newVal)), { deep: true });
 
             const currentSystemList = computed(() => CAPSULE_DB[newCapsule.value.system]);
+            
             const addCapsule = () => {
                 let finalName = newCapsule.value.selectedName;
                 if (finalName === 'CUSTOM') {
@@ -304,10 +320,24 @@
                 } else if (!finalName) return alert('請選擇膠囊');
                 
                 const existing = capsules.value.find(c => c.name === finalName && c.system === newCapsule.value.system);
-                if (existing) existing.quantity += newCapsule.value.quantity;
-                else capsules.value.push({ id: Date.now(), system: newCapsule.value.system, name: finalName, quantity: newCapsule.value.quantity });
+                if (existing) {
+                    existing.quantity += newCapsule.value.quantity;
+                    // 如果使用者有輸入日期，就更新這筆資料的到期日 (更新為最新的)
+                    if (newCapsule.value.expiry) existing.expiry = newCapsule.value.expiry;
+                } else {
+                    capsules.value.push({ 
+                        id: Date.now(), 
+                        system: newCapsule.value.system, 
+                        name: finalName, 
+                        quantity: newCapsule.value.quantity,
+                        expiry: newCapsule.value.expiry || '' // 儲存日期
+                    });
+                }
                 
-                newCapsule.value.selectedName = ''; newCapsule.value.customInput = '';
+                // 重置輸入框，但保留系統選擇，方便連續輸入
+                newCapsule.value.selectedName = ''; 
+                newCapsule.value.customInput = '';
+                newCapsule.value.expiry = '';
             };
             
             const filteredCapsules = computed(() => filter.value === 'ALL' ? capsules.value : capsules.value.filter(c => c.system === filter.value));
@@ -337,19 +367,55 @@
                 return colors[name.length % colors.length];
             };
 
+            // --- 新增：計算新鮮度 (修正為 29 天) ---
+            const getFreshness = (cap) => {
+                if (!cap.expiry) return { text: '', class: '' };
+                const today = new Date();
+                const exp = new Date(cap.expiry);
+                const diffTime = exp - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0) return { text: `🚫 已過期 (${Math.abs(diffDays)}天)`, class: 'bg-danger text-white' };
+                if (diffDays <= 29) return { text: `⚠️ 盡快飲用 (剩${diffDays}天)`, class: 'bg-warning text-dark' };
+                return { text: `📅 ${cap.expiry.replace(/-/g, '/')}`, class: 'bg-light text-muted border' };
+            };
+
             const backupCode = computed(() => { try { return btoa(unescape(encodeURIComponent(JSON.stringify({capsules: capsules.value, recipes: customRecipes.value})))); } catch(e){ return "Error"; }});
-            const copyBackup = () => { navigator.clipboard.writeText(backupCode.value).then(() => { copyBtnText.value = '✅ 已複製！'; setTimeout(() => copyBtnText.value = '📋 複製代碼', 2000); }); };
-            const restoreData = () => {
-                if(!restoreInput.value) return;
-                if(confirm('警告：這將覆蓋現有資料！')) {
-                    try { const data = JSON.parse(decodeURIComponent(escape(atob(restoreInput.value))));
-                        if(Array.isArray(data)) capsules.value = data; else { if(data.capsules) capsules.value = data.capsules; if(data.recipes) customRecipes.value = data.recipes; }
-                        alert('還原成功！'); restoreInput.value = ''; currentView.value = 'INVENTORY';
-                    } catch(e) { alert('無效代碼'); }
+            
+            const copyBackup = () => { 
+                navigator.clipboard.writeText(backupCode.value).then(() => { 
+                    copyBtnText.value = '✅ 已複製！'; 
+                    setTimeout(() => copyBtnText.value = '📋 複製', 2000); 
+                }); 
+            };
+
+            const shareCode = async () => {
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: '我的膠囊庫存代碼',
+                            text: backupCode.value,
+                        });
+                        alert('分享成功！');
+                    } catch (err) {
+                        console.log('分享取消');
+                    }
+                } else {
+                    alert('您的瀏覽器不支援原生分享，請使用複製按鈕。');
                 }
             };
 
-            return { capsules, newCapsule, currentView, filter, currentSystemList, addCapsule, filteredCapsules, drink, remove, recipeStatusList, makeRecipe, getCapsuleColor, backupCode, copyBtnText, copyBackup, restoreInput, restoreData, showCreateRecipe, newRecipe, addRecipe, deleteRecipe };
+            const restoreData = () => {
+                if(!restoreInput.value) return;
+                if(confirm('警告：這將覆蓋現有資料！請確認是否繼續？')) {
+                    try { const data = JSON.parse(decodeURIComponent(escape(atob(restoreInput.value))));
+                        if(Array.isArray(data)) capsules.value = data; else { if(data.capsules) capsules.value = data.capsules; if(data.recipes) customRecipes.value = data.recipes; }
+                        alert('資料同步成功！'); restoreInput.value = ''; currentView.value = 'INVENTORY';
+                    } catch(e) { alert('無效的代碼，請重新複製'); }
+                }
+            };
+
+            return { capsules, newCapsule, currentView, filter, currentSystemList, addCapsule, filteredCapsules, drink, remove, recipeStatusList, makeRecipe, getCapsuleColor, backupCode, copyBtnText, copyBackup, shareCode, restoreInput, restoreData, showCreateRecipe, newRecipe, addRecipe, deleteRecipe, getFreshness };
         }
     }).mount('#app');
 </script>
