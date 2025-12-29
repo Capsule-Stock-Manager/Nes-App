@@ -22,7 +22,15 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         body { background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-user-select: none; user-select: none; }
-        .capsule-card, .recipe-card, .promo-card, .backup-card { border-radius: 16px; overflow: hidden; border: none; transition: 0.2s; }
+        
+        /* v5.1 修正：移除 overflow: hidden，讓下拉選單可以正常顯示不被擋住 */
+        .capsule-card, .recipe-card, .promo-card, .backup-card { 
+            border-radius: 16px; 
+            border: none; 
+            transition: 0.2s; 
+            overflow: visible !important; /* 關鍵修正 */
+        }
+        
         .capsule-card:hover, .recipe-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
         .circle { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.2); }
         .badge-available { background-color: #d1e7dd; color: #0f5132; }
@@ -49,7 +57,7 @@
 <div id="app" class="container py-4" style="max-width: 600px;">
     
     <div class="text-center mb-4">
-        <h2 class="fw-bold text-dark">☕ Nespresso 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v5.0</span></h2>
+        <h2 class="fw-bold text-dark">☕ Nespresso 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v5.1</span></h2>
         
         <div class="mode-switch-container mt-2">
             <button class="mode-btn" :class="{active: trackingMode === 'CUP'}" @click="trackingMode = 'CUP'">🎯 精準模式 (-1)</button>
@@ -312,13 +320,13 @@
             onMounted(() => {
                 const savedData = localStorage.getItem('nespresso_cn_v1');
                 const savedRecipes = localStorage.getItem('nespresso_custom_recipes');
-                const savedMode = localStorage.getItem('nespresso_mode'); // 讀取模式
+                const savedMode = localStorage.getItem('nespresso_mode');
 
                 if (savedData) capsules.value = JSON.parse(savedData);
                 else capsules.value = [{ id: 1, system: 'OL', name: '阿佩奇歐', quantity: 5, expiry: '', pinned: false }];
                 
                 if (savedRecipes) customRecipes.value = JSON.parse(savedRecipes);
-                if (savedMode) trackingMode.value = savedMode; // 還原模式
+                if (savedMode) trackingMode.value = savedMode;
 
                 checkUrlCommands();
             });
@@ -345,7 +353,6 @@
             watch(capsules, (newVal) => localStorage.setItem('nespresso_cn_v1', JSON.stringify(newVal)), { deep: true });
             watch(customRecipes, (newVal) => localStorage.setItem('nespresso_custom_recipes', JSON.stringify(newVal)), { deep: true });
             
-            // 監聽模式改變並存檔
             watch(trackingMode, (newVal) => localStorage.setItem('nespresso_mode', newVal));
 
             const currentSystemList = computed(() => CAPSULE_DB[newCapsule.value.system]);
@@ -380,18 +387,17 @@
                 return [...filteredCapsules.value].sort((a, b) => (b.pinned === true ? 1 : 0) - (a.pinned === true ? 1 : 0));
             });
 
-            // 智慧扣除：根據模式決定扣多少
+            // 智慧扣除
             const smartDeduct = (cap) => {
                 if (trackingMode.value === 'CUP') {
                     if (cap.quantity > 0) cap.quantity--;
                 } else {
-                    // 懶人模式：扣 10 顆 (開一條)
                     if (cap.quantity >= 10) cap.quantity -= 10;
                     else alert('庫存不足一條 (10顆)，無法開箱！');
                 }
             };
 
-            const drink = (cap) => { if (cap.quantity > 0) cap.quantity--; }; // 舊方法保留給快捷連結用
+            const drink = (cap) => { if (cap.quantity > 0) cap.quantity--; }; 
             const remove = (cap) => { if(confirm('刪除?')) capsules.value = capsules.value.filter(c => c.id !== cap.id); };
             const togglePin = (cap) => { cap.pinned = !cap.pinned; };
 
