@@ -31,7 +31,13 @@
         .nav-pills .nav-link { color: #666; font-weight: bold; }
         .expiry-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
         
-        /* 食譜狀態樣式 */
+        /* 批量選擇模式樣式 */
+        .bulk-item { cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        .bulk-item:hover { background-color: #f8f9fa; }
+        .bulk-item.selected { background-color: #e8f5e9; border-color: #198754; color: #0f5132; }
+        .bulk-check { font-size: 1.2rem; color: #ddd; }
+        .bulk-item.selected .bulk-check { color: #198754; }
+        
         .recipe-available { border: 2px solid #198754; background-color: #f8fffb; }
         .recipe-missing { opacity: 0.8; filter: grayscale(0.8); }
         .recipe-missing:hover { filter: grayscale(0); opacity: 1; }
@@ -42,8 +48,8 @@
 <div id="app" class="container py-4" style="max-width: 600px;">
     
     <div class="text-center mb-4">
-        <h2 class="fw-bold text-dark">☕ Nespresso 智能食譜 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v6.0</span></h2>
-        <small class="text-muted">我有什麼膠囊 ➡️ 幫我找食譜</small>
+        <h2 class="fw-bold text-dark">☕ Nespresso 智能食譜 <span class="badge bg-secondary" style="font-size: 10px; vertical-align: middle;">v7.0</span></h2>
+        <small class="text-muted">點菜單模式：像劃菜單一樣快速！</small>
     </div>
 
     <ul class="nav nav-pills nav-fill mb-4 bg-white p-2 rounded-4 shadow-sm">
@@ -53,66 +59,121 @@
     </ul>
 
     <div v-if="currentView === 'INVENTORY'">
-        <div class="card p-3 mb-4 shadow-sm bg-white">
-            <h6 class="card-title fw-bold text-secondary mb-3">➕ 新增我有的膠囊</h6>
-            <div class="row g-2">
-                <div class="col-4">
-                    <select v-model="newCapsule.system" class="form-select text-center fw-bold">
-                        <option value="OL">OL</option>
-                        <option value="VL">VL</option>
-                    </select>
+        
+        <div v-if="!isBulkMode">
+            <div class="card p-3 mb-4 shadow-sm bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="card-title fw-bold text-secondary mb-0">➕ 快速新增</h6>
+                    <button @click="openBulkMode" class="btn btn-outline-primary btn-sm fw-bold rounded-pill">📝 批量勾選 (點菜單)</button>
                 </div>
-                <div class="col-8">
-                    <select v-model="newCapsule.selectedName" class="form-select">
-                        <option value="" disabled selected>請選擇口味...</option>
-                        <optgroup v-for="(list, category) in currentSystemList" :label="category">
-                            <option v-for="name in list" :value="name">{{ name }}</option>
-                        </optgroup>
-                    </select>
+                
+                <div class="row g-2">
+                    <div class="col-4">
+                        <select v-model="newCapsule.system" class="form-select text-center fw-bold">
+                            <option value="OL">OL</option>
+                            <option value="VL">VL</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-8">
+                        <input v-model="searchQuery" type="text" class="form-control border-primary" placeholder="🔍 搜尋膠囊...">
+                    </div>
+
+                    <div class="col-12">
+                        <select v-model="newCapsule.selectedName" class="form-select" size="5" v-if="searchQuery">
+                            <option v-for="name in filteredCapsuleList" :value="name">{{ name }}</option>
+                            <option disabled v-if="filteredCapsuleList.length === 0">❌ 找不到相關膠囊</option>
+                        </select>
+                        <select v-model="newCapsule.selectedName" class="form-select" v-else>
+                            <option value="" disabled selected>請選擇口味...</option>
+                            <optgroup v-for="(list, category) in currentSystemList" :label="category">
+                                <option v-for="name in list" :value="name">{{ name }}</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">📅</span>
+                            <input v-model="newCapsule.expiry" type="text" class="form-control border-start-0 text-secondary" placeholder="有效日期 (選填)" onfocus="(this.type='date')" onblur="(this.value ? this.type='date' : this.type='text')">
+                            <button @click="addCapsule" class="btn btn-dark fw-bold px-4" :disabled="!newCapsule.selectedName">加入</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-12">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0">📅</span>
-                        <input v-model="newCapsule.expiry" type="text" class="form-control border-start-0 text-secondary" placeholder="有效日期 (選填，提醒您優先喝)" onfocus="(this.type='date')" onblur="(this.value ? this.type='date' : this.type='text')">
-                        <button @click="addCapsule" class="btn btn-dark fw-bold px-4">加入清單</button>
+            </div>
+
+            <div v-if="capsules.length === 0" class="text-center py-5">
+                <h1 class="display-1 text-muted">📝</h1>
+                <p class="text-muted">清單是空的。<br>推薦點擊上方 <b>「批量勾選」</b> 按鈕，<br>一次把家裡的庫存都勾起來！</p>
+            </div>
+            
+            <div v-else>
+                <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                    <small class="text-muted">目前共有 {{ capsules.length }} 款膠囊</small>
+                    <button @click="clearAll" class="btn btn-sm text-danger">清空重設</button>
+                </div>
+                
+                <div v-for="cap in capsules" :key="cap.id" class="card mb-3 shadow-sm capsule-card bg-white">
+                    <div class="card-body d-flex align-items-center justify-content-between py-3">
+                        <div class="d-flex align-items-center gap-3 overflow-hidden">
+                            <div class="circle shadow-sm" :style="{ backgroundColor: getCapsuleColor(cap.name) }">{{ cap.system === 'OL' ? 'OL' : 'VL' }}</div>
+                            <div class="overflow-hidden">
+                                <h6 class="mb-0 fw-bold text-truncate">{{ cap.name }}</h6>
+                                <div v-if="cap.expiry" :class="getFreshness(cap).class" class="expiry-badge text-truncate">
+                                    {{ getFreshness(cap).text }}
+                                </div>
+                                <div v-else class="expiry-badge bg-light text-muted border">庫存中</div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <button @click="remove(cap)" class="btn btn-outline-danger btn-sm rounded-pill px-3">喝光了 🗑️</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div v-if="capsules.length === 0" class="text-center py-5">
-            <h1 class="display-1 text-muted">📭</h1>
-            <p class="text-muted">您的膠囊清單是空的。<br>請上方加入您手邊有的膠囊，<br>我們會自動為您配對食譜！</p>
-        </div>
-        
-        <div v-else>
-            <div class="d-flex justify-content-between align-items-center mb-2 px-2">
-                <small class="text-muted">目前共有 {{ capsules.length }} 款膠囊</small>
-                <button @click="clearAll" class="btn btn-sm text-danger">清空重設</button>
+        <div v-else class="bg-white rounded-4 shadow-sm p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 sticky-top bg-white py-2" style="z-index: 10;">
+                <h5 class="fw-bold mb-0">📝 點菜單模式</h5>
+                <div>
+                    <button @click="isBulkMode = false" class="btn btn-secondary btn-sm me-2">取消</button>
+                    <button @click="saveBulkSelection" class="btn btn-success btn-sm fw-bold px-3">💾 儲存 ({{ tempSelectedNames.length }})</button>
+                </div>
             </div>
-            
-            <div v-for="cap in capsules" :key="cap.id" class="card mb-3 shadow-sm capsule-card bg-white">
-                <div class="card-body d-flex align-items-center justify-content-between py-3">
-                    <div class="d-flex align-items-center gap-3 overflow-hidden">
-                        <div class="circle shadow-sm" :style="{ backgroundColor: getCapsuleColor(cap.name) }">{{ cap.system === 'OL' ? 'OL' : 'VL' }}</div>
-                        <div class="overflow-hidden">
-                            <h6 class="mb-0 fw-bold text-truncate">{{ cap.name }}</h6>
-                            <div v-if="cap.expiry" :class="getFreshness(cap).class" class="expiry-badge text-truncate">
-                                {{ getFreshness(cap).text }}
+
+            <ul class="nav nav-tabs nav-fill mb-3">
+                <li class="nav-item">
+                    <a class="nav-link" :class="{active: bulkSystem === 'OL'}" @click="bulkSystem = 'OL'" href="#">Original (OL)</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" :class="{active: bulkSystem === 'VL'}" @click="bulkSystem = 'VL'" href="#">Vertuo (VL)</a>
+                </li>
+            </ul>
+
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div v-for="(list, category) in CAPSULE_DB[bulkSystem]" :key="category" class="mb-4">
+                    <h6 class="text-muted fw-bold border-bottom pb-1 mb-2 small">{{ category }}</h6>
+                    <div class="row g-2">
+                        <div class="col-6" v-for="name in list" :key="name">
+                            <div class="bulk-item p-2 rounded d-flex align-items-center justify-content-between" 
+                                 :class="{selected: tempSelectedNames.includes(name)}"
+                                 @click="toggleBulkSelect(name)">
+                                <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                    <div class="circle" style="width:24px;height:24px;font-size:8px;" :style="{ backgroundColor: getCapsuleColor(name) }"></div>
+                                    <span class="small fw-bold text-truncate">{{ name }}</span>
+                                </div>
+                                <span class="bulk-check">{{ tempSelectedNames.includes(name) ? '✅' : '⬜' }}</span>
                             </div>
-                            <div v-else class="expiry-badge bg-light text-muted border">庫存中</div>
                         </div>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <button @click="remove(cap)" class="btn btn-outline-danger btn-sm rounded-pill px-3">喝光了 🗑️</button>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
 
     <div v-if="currentView === 'RECIPES'">
-        
         <div class="d-flex gap-2 mb-3 overflow-auto">
             <button @click="recipeFilter='ALL'" class="btn btn-sm rounded-pill px-3" :class="recipeFilter==='ALL' ? 'btn-dark' : 'btn-outline-dark'">全部</button>
             <button @click="recipeFilter='HOT'" class="btn btn-sm rounded-pill px-3" :class="recipeFilter==='HOT' ? 'btn-danger' : 'btn-outline-danger'">🔥 熱飲</button>
@@ -128,16 +189,13 @@
                             <h5 class="fw-bold mb-0">{{ recipe.icon }} {{ recipe.name }}</h5>
                             <span class="badge rounded-pill" :class="recipe.canMake ? 'bg-success' : 'bg-secondary'">{{ recipe.canMake ? '✅ 可製作' : '缺膠囊' }}</span>
                         </div>
-                        
                         <p class="text-muted small mb-3">{{ recipe.desc }}</p>
-                        
                         <div class="bg-white bg-opacity-50 p-2 rounded mb-3 border">
                             <small class="fw-bold text-secondary">準備材料：</small> 
                             <div class="mt-1">
                                 <span class="badge bg-light text-dark border me-1 mb-1" v-for="ing in recipe.ingredients">🔹 {{ ing }}</span>
                             </div>
                         </div>
-                        
                         <div v-if="recipe.canMake">
                             <div class="p-2 bg-success bg-opacity-10 rounded">
                                 <small class="text-success fw-bold">使用您庫存中的：</small><br>
@@ -193,10 +251,21 @@
 <script>
     const { createApp, ref, computed, watch, onMounted } = Vue;
     
-    // --- 資料庫 (保持完整) ---
+    // --- 資料庫 ---
     const CAPSULE_DB = {
-        OL: { "義式經典": ["拿波里", "卡薩", "芮斯崔朵", "阿佩奇歐", "羅馬", "威尼斯", "莉梵朵", "卡布里奇歐", "沃魯托", "科斯"], "環遊世界": ["開普敦", "斯德哥爾摩", "東京", "維也納", "上海", "布宜諾斯艾利斯", "巴黎濃縮咖啡", "伊斯坦堡", "里約熱內盧"], "單一產區": ["印度", "印尼", "哥倫比亞", "尼加拉瓜", "依索比亞"], "咖啡師特調": ["溫和奇里奧", "濃醇蘇克洛", "特濃可塔朵", "奶油香草", "焦糖布蕾", "可可松露"] },
-        VL: { "濃縮": ["義式濃縮", "迪亞沃利托", "阿爾提秀", "歐拉菲歐", "沃爾泰索"], "雙份濃縮": ["雙份濃縮-特濃", "雙份濃縮-溫和", "雙份濃縮-甜味"], "大杯": ["印坦索", "斯托米歐", "奧達奇歐", "梅絡茲歐", "索莉里歐"], "長萃": ["芙塔朵", "阿隆迪歐", "因尼齊歐", "哥斯大黎加"], "咖啡師特調": ["比昂科皮科洛", "比昂科多PIO", "比昂科馥緹", "甜香草", "金黃焦糖", "濃醇巧克力", "烤榛果"] }
+        OL: { 
+            "義式經典": ["拿波里", "卡薩", "芮斯崔朵", "阿佩奇歐", "羅馬", "威尼斯", "莉梵朵", "卡布里奇歐", "沃魯托", "科斯"], 
+            "環遊世界": ["開普敦", "斯德哥爾摩", "東京", "維也納", "上海", "布宜諾斯艾利斯", "巴黎濃縮咖啡", "伊斯坦堡", "里約熱內盧"], 
+            "單一產區": ["印度", "印尼", "哥倫比亞", "尼加拉瓜", "依索比亞"],
+            "咖啡師特調": ["溫和奇里奧", "濃醇蘇克洛", "特濃可塔朵", "奶油香草", "焦糖布蕾", "可可松露"] 
+        },
+        VL: { 
+            "濃縮": ["義式濃縮", "迪亞沃利托", "阿爾提秀", "歐拉菲歐", "沃爾泰索"], 
+            "雙份濃縮": ["雙份濃縮-特濃", "雙份濃縮-溫和", "雙份濃縮-甜味"], 
+            "大杯": ["印坦索", "斯托米歐", "奧達奇歐", "梅絡茲歐", "索莉里歐"],
+            "長萃": ["芙塔朵", "阿隆迪歐", "因尼齊歐", "哥斯大黎加"],
+            "咖啡師特調": ["比昂科皮科洛", "比昂科多PIO", "比昂科馥緹", "甜香草", "金黃焦糖", "濃醇巧克力", "烤榛果"] 
+        }
     };
 
     const OFFICIAL_RECIPES = [
@@ -236,10 +305,16 @@
         setup() {
             const capsules = ref([]);
             const newCapsule = ref({ system: 'OL', selectedName: '', expiry: '' });
+            const searchQuery = ref('');
             const currentView = ref('INVENTORY');
             const recipeFilter = ref('ALL');
             const copyBtnText = ref('📋 複製');
             const restoreInput = ref('');
+            
+            // 批量模式狀態
+            const isBulkMode = ref(false);
+            const bulkSystem = ref('OL');
+            const tempSelectedNames = ref([]);
 
             onMounted(() => {
                 const savedData = localStorage.getItem('nespresso_cn_v1');
@@ -251,9 +326,19 @@
 
             const currentSystemList = computed(() => CAPSULE_DB[newCapsule.value.system]);
             
+            // --- 關鍵字過濾邏輯 ---
+            const filteredCapsuleList = computed(() => {
+                if (!searchQuery.value) return [];
+                const query = searchQuery.value.toLowerCase();
+                let allCapsules = [];
+                Object.values(currentSystemList.value).forEach(list => {
+                    allCapsules = allCapsules.concat(list);
+                });
+                return allCapsules.filter(name => name.toLowerCase().includes(query));
+            });
+
             const addCapsule = () => {
                 if (!newCapsule.value.selectedName) return alert('請選擇膠囊口味');
-                // 檢查是否已存在，若存在則更新效期
                 const existing = capsules.value.find(c => c.name === newCapsule.value.selectedName && c.system === newCapsule.value.system);
                 if (existing) {
                     if (newCapsule.value.expiry) existing.expiry = newCapsule.value.expiry;
@@ -266,35 +351,77 @@
                         expiry: newCapsule.value.expiry || '' 
                     });
                 }
-                newCapsule.value.selectedName = ''; newCapsule.value.expiry = '';
+                newCapsule.value.selectedName = ''; newCapsule.value.expiry = ''; searchQuery.value = '';
             };
             
             const remove = (cap) => { if(confirm(`確定要移除「${cap.name}」嗎？\n(代表已經喝光光囉)`)) capsules.value = capsules.value.filter(c => c.id !== cap.id); };
             const clearAll = () => { if(confirm('確定要清空所有庫存嗎？')) capsules.value = []; };
 
-            // 核心演算法：檢查使用者有沒有這個膠囊
+            // --- 批量模式邏輯 ---
+            const openBulkMode = () => {
+                isBulkMode.value = true;
+                // 初始化：把目前有的膠囊勾起來
+                tempSelectedNames.value = capsules.value
+                    .filter(c => c.system === bulkSystem.value) // 只載入目前系統的
+                    .map(c => c.name);
+            };
+
+            // 當切換 OL/VL 時，重新整理勾選狀態
+            watch(bulkSystem, (newSystem) => {
+                tempSelectedNames.value = capsules.value
+                    .filter(c => c.system === newSystem)
+                    .map(c => c.name);
+            });
+
+            const toggleBulkSelect = (name) => {
+                if (tempSelectedNames.value.includes(name)) {
+                    tempSelectedNames.value = tempSelectedNames.value.filter(n => n !== name);
+                } else {
+                    tempSelectedNames.value.push(name);
+                }
+            };
+
+            const saveBulkSelection = () => {
+                // 1. 找出這個系統(OL/VL)原本有的
+                const originalInSystem = capsules.value.filter(c => c.system === bulkSystem.value);
+                
+                // 2. 處理新增的 (在 temp 中，但不在 original 中)
+                tempSelectedNames.value.forEach(name => {
+                    const exists = originalInSystem.find(c => c.name === name);
+                    if (!exists) {
+                        capsules.value.push({
+                            id: Date.now() + Math.random(),
+                            system: bulkSystem.value,
+                            name: name,
+                            expiry: '' // 批量新增預設無效期
+                        });
+                    }
+                });
+
+                // 3. 處理移除的 (在 original 中，但不在 temp 中)
+                originalInSystem.forEach(cap => {
+                    if (!tempSelectedNames.value.includes(cap.name)) {
+                        capsules.value = capsules.value.filter(c => c.id !== cap.id);
+                    }
+                });
+
+                isBulkMode.value = false;
+                alert('✅ 庫存已更新！');
+            };
+
             const hasCapsule = (capsuleName) => {
                 return capsules.value.some(c => c.name.includes(capsuleName));
             };
 
             const sortedRecipes = computed(() => {
                 let list = OFFICIAL_RECIPES;
-                if (recipeFilter.value !== 'ALL') {
-                    list = list.filter(r => r.type === recipeFilter.value);
-                }
+                if (recipeFilter.value !== 'ALL') list = list.filter(r => r.type === recipeFilter.value);
                 
-                // 處理每個食譜的狀態
                 const processed = list.map(recipe => {
-                    // 找到配對的膠囊 (只要有一顆有就算可以做)
                     const match = recipe.recommended.find(recName => hasCapsule(recName));
-                    return {
-                        ...recipe,
-                        canMake: !!match, // 轉成布林值
-                        matchCapsule: match || null // 記住是哪一顆配對成功
-                    };
+                    return { ...recipe, canMake: !!match, matchCapsule: match || null };
                 });
 
-                // 排序：可製作的排前面
                 return processed.sort((a, b) => (b.canMake ? 1 : 0) - (a.canMake ? 1 : 0));
             });
             
@@ -320,12 +447,10 @@
                 return { text: `📅 ${cap.expiry.replace(/-/g, '/')}`, class: 'bg-light text-muted border' };
             };
 
-            // 輔助功能：檢查某個膠囊名稱是否快過期 (用於食譜頁面提醒)
             const getFreshnessByName = (capsuleName) => {
                 const cap = capsules.value.find(c => c.name.includes(capsuleName));
                 if (cap && cap.expiry) {
                     const status = getFreshness(cap);
-                    // 如果狀態是黃色或紅色，回傳 true
                     return { isUrgent: status.class.includes('bg-warning') || status.class.includes('bg-danger') };
                 }
                 return { isUrgent: false };
@@ -336,7 +461,7 @@
             const shareCode = async () => { if (navigator.share) { try { await navigator.share({ title: '我的膠囊庫存代碼', text: backupCode.value }); alert('分享成功！'); } catch (err) { console.log('分享取消'); } } else { alert('您的瀏覽器不支援原生分享，請使用複製按鈕。'); } };
             const restoreData = () => { if(!restoreInput.value) return; if(confirm('警告：這將覆蓋現有資料！請確認是否繼續？')) { try { const data = JSON.parse(decodeURIComponent(escape(atob(restoreInput.value)))); if(Array.isArray(data)) capsules.value = data; else { if(data.capsules) capsules.value = data.capsules; } alert('資料同步成功！'); restoreInput.value = ''; currentView.value = 'INVENTORY'; } catch(e) { alert('無效的代碼，請重新複製'); } } };
 
-            return { capsules, newCapsule, currentView, recipeFilter, currentSystemList, addCapsule, sortedRecipes, remove, clearAll, getCapsuleColor, backupCode, copyBtnText, copyBackup, shareCode, restoreInput, restoreData, getFreshness, getFreshnessByName };
+            return { capsules, newCapsule, currentView, recipeFilter, currentSystemList, addCapsule, sortedRecipes, remove, clearAll, getCapsuleColor, backupCode, copyBtnText, copyBackup, shareCode, restoreInput, restoreData, getFreshness, getFreshnessByName, searchQuery, filteredCapsuleList, isBulkMode, openBulkMode, saveBulkSelection, CAPSULE_DB, bulkSystem, tempSelectedNames, toggleBulkSelect };
         }
     }).mount('#app');
 </script>
