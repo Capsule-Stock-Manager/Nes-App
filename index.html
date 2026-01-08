@@ -68,7 +68,7 @@
     
     <div class="sticky-header">
         <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-            <h5 class="fw-bold mb-0">☕ 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px;">v9.1</span></h5>
+            <h5 class="fw-bold mb-0">☕ 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px;">v9.2</span></h5>
             <button @click="clearAll" class="btn btn-sm btn-link text-danger text-decoration-none" style="font-size: 12px;">清空重設</button>
         </div>
 
@@ -118,7 +118,7 @@
         </div>
 
         <div v-for="recipe in matchedRecipes" :key="recipe.id" class="recipe-card shadow-sm">
-            <div class="recipe-header" data-bs-toggle="collapse" :data-bs-target="'#rec-'+recipe.id">
+            <div class="recipe-header" data-bs-toggle="collapse" :data-bs-target="'#rec-'+recipe.id" style="cursor: pointer;">
                 <div class="d-flex align-items-center gap-2">
                     <span style="font-size: 20px;">{{ recipe.icon }}</span>
                     <div>
@@ -126,15 +126,25 @@
                         <div class="recipe-match">使用：{{ recipe.matchCapsule }}</div>
                     </div>
                 </div>
-                <small class="text-muted">詳情 ▼</small>
+                <small class="text-muted">教學 ▼</small>
             </div>
+            
             <div :id="'#rec-'+recipe.id" class="collapse recipe-body">
-                <p class="mb-2">{{ recipe.desc }}</p>
-                <div class="border-top pt-2">
+                <p class="mb-2 text-muted" style="font-size: 12px;">{{ recipe.desc }}</p>
+                
+                <div class="mb-3">
                     <span class="badge bg-light text-dark border me-1" v-for="ing in recipe.ingredients">{{ ing }}</span>
                 </div>
-                <div v-if="getExpiryStatus(recipe.matchCapsule)" class="mt-2 text-danger small fw-bold">
-                    ⚠️ 此膠囊設定了效期，請優先飲用！
+
+                <div class="border-top pt-2">
+                    <small class="fw-bold text-secondary d-block mb-2">製作步驟：</small>
+                    <ol class="ps-3 mb-0" style="font-size: 13px; line-height: 1.6; color: #333;">
+                        <li v-for="(step, index) in recipe.steps" :key="index" class="mb-1">{{ step }}</li>
+                    </ol>
+                </div>
+
+                <div v-if="getExpiryStatus(recipe.matchCapsule)" class="mt-3 p-2 bg-danger bg-opacity-10 rounded text-danger small fw-bold text-center">
+                    ⚠️ 膠囊快過期了，推薦優先製作！
                 </div>
                 <div class="d-grid mt-2">
                     <a href="https://tw.shp.ee/pJUMmtp" target="_blank" class="btn btn-sm btn-outline-secondary">去蝦皮補貨</a>
@@ -154,7 +164,6 @@
 <script>
     const { createApp, ref, computed, watch, onMounted } = Vue;
 
-    // --- 資料庫 ---
     const CAPSULE_DB = {
         OL: { 
             "義式經典": ["拿波里", "卡薩", "芮斯崔朵", "阿佩奇歐", "羅馬", "威尼斯", "莉梵朵", "卡布里奇歐", "沃魯托", "科斯"], 
@@ -171,7 +180,6 @@
         }
     };
 
-    // --- 熱門組合包 (Bundles) ---
     const BUNDLES = {
         OL: {
             "訂製時光(5條)": ["阿佩奇歐", "巴黎", "哥倫比亞", "開普敦", "東京"],
@@ -187,22 +195,67 @@
     };
 
     const RECIPES = [
-        { id: 1, name: "經典冰拿鐵", icon: "🧊", desc: "冰塊+牛奶+濃縮", ingredients: ["冰塊", "150ml 牛奶"], recommended: ["阿佩奇歐", "雙份-特濃", "羅馬", "拿波里"] },
-        { id: 2, name: "西西里氣泡", icon: "🍋", desc: "氣泡水+檸檬+糖", ingredients: ["氣泡水", "檸檬汁", "糖漿"], recommended: ["科斯", "沃魯托", "東京", "索莉里歐"] },
-        { id: 3, name: "焦糖瑪奇朵", icon: "🍮", desc: "熱奶泡+焦糖醬", ingredients: ["焦糖醬", "熱牛奶"], recommended: ["焦糖布蕾", "金黃焦糖", "沃魯托"] },
-        { id: 4, name: "阿法奇朵", icon: "🍨", desc: "淋在冰淇淋上", ingredients: ["香草冰淇淋"], recommended: ["可可松露", "濃醇巧克力", "阿佩奇歐"] },
-        { id: 5, name: "熱美式", icon: "☕", desc: "熱水稀釋", ingredients: ["150ml 熱水"], recommended: ["開普敦", "斯托米歐", "奧達奇歐"] },
-        { id: 6, name: "燕麥拿鐵", icon: "🌾", desc: "搭配燕麥奶", ingredients: ["燕麥奶"], recommended: ["溫和奇里奧", "特濃可塔朵", "比昂科馥緹"] },
-        { id: 7, name: "摩卡咖啡", icon: "🍫", desc: "加巧克力粉", ingredients: ["巧克力粉", "牛奶"], recommended: ["可可松露", "濃醇巧克力", "印坦索"] },
-        { id: 8, name: "防彈咖啡", icon: "🛡️", desc: "加奶油與MCT油", ingredients: ["無鹽奶油", "MCT油"], recommended: ["斯托米歐", "開普敦", "拿波里"] },
-        { id: 9, name: "通寧咖啡", icon: "🍸", desc: "通寧水+濃縮", ingredients: ["通寧水", "冰塊"], recommended: ["東京", "科斯", "尼加拉瓜"] }
+        { 
+            id: 1, name: "經典冰拿鐵", icon: "🧊", desc: "濃縮與冰牛奶的完美結合。", 
+            ingredients: ["冰塊", "150ml 牛奶"], 
+            recommended: ["阿佩奇歐", "雙份-特濃", "羅馬", "拿波里"],
+            steps: ["在玻璃杯中放入 3-4 顆冰塊。", "倒入 150ml 冰牛奶。", "萃取 40ml 濃縮咖啡直接淋在牛奶上。", "攪拌均勻即可享用。"]
+        },
+        { 
+            id: 2, name: "西西里氣泡", icon: "🍋", desc: "夏日清爽首選。", 
+            ingredients: ["氣泡水", "檸檬汁", "糖漿"], 
+            recommended: ["科斯", "沃魯托", "東京", "索莉里歐"],
+            steps: ["杯中加入 10ml 糖漿與少許檸檬汁。", "加入冰塊並倒入 100ml 氣泡水。", "萃取 40ml 濃縮咖啡緩慢倒入，做出分層效果。"]
+        },
+        { 
+            id: 3, name: "焦糖瑪奇朵", icon: "🍮", desc: "甜蜜焦糖層次。", 
+            ingredients: ["焦糖醬", "熱牛奶", "奶泡"], 
+            recommended: ["焦糖布蕾", "金黃焦糖", "沃魯托"],
+            steps: ["杯底加入 10ml 焦糖醬。", "製作熱奶泡並倒入杯中約八分滿。", "萃取 40ml 濃縮咖啡，讓咖啡穿過奶泡層。", "最後在奶泡上淋上焦糖醬裝飾。"]
+        },
+        { 
+            id: 4, name: "阿法奇朵", icon: "🍨", desc: "義式經典甜點。", 
+            ingredients: ["香草冰淇淋"], 
+            recommended: ["可可松露", "濃醇巧克力", "阿佩奇歐"],
+            steps: ["在杯中放入一球香草冰淇淋。", "直接將 40ml 濃縮咖啡萃取在冰淇淋上。", "可依喜好撒上可可粉或堅果碎。"]
+        },
+        { 
+            id: 5, name: "熱美式", icon: "☕", desc: "溫暖順口。", 
+            ingredients: ["150ml 熱水"], 
+            recommended: ["開普敦", "斯托米歐", "奧達奇歐"],
+            steps: ["先在杯中注入 150ml 熱水。", "萃取 40ml 濃縮咖啡入杯。", "攪拌後即可享用，可保留油脂香氣。"]
+        },
+        { 
+            id: 6, name: "燕麥拿鐵", icon: "🌾", desc: "穀物香氣與咖啡的結合。", 
+            ingredients: ["燕麥奶"], 
+            recommended: ["溫和奇里奧", "特濃可塔朵", "比昂科馥緹"],
+            steps: ["將燕麥奶加熱並打出奶泡。", "倒入杯中。", "萃取濃縮咖啡與燕麥奶混合。"]
+        },
+        { 
+            id: 7, name: "摩卡咖啡", icon: "🍫", desc: "巧克力控最愛。", 
+            ingredients: ["巧克力粉/醬", "牛奶"], 
+            recommended: ["可可松露", "濃醇巧克力", "印坦索"],
+            steps: ["杯底加入巧克力醬或巧克力粉。", "萃取濃縮咖啡並攪拌均勻。", "加入熱牛奶或熱奶泡至滿杯。"]
+        },
+        { 
+            id: 8, name: "防彈咖啡", icon: "🛡️", desc: "生酮飲食必備。", 
+            ingredients: ["無鹽奶油", "MCT油"], 
+            recommended: ["斯托米歐", "開普敦", "拿波里"],
+            steps: ["萃取大杯咖啡或兩顆濃縮咖啡。", "加入 1 匙無鹽奶油與 1 匙 MCT 油。", "使用攪拌棒或果汁機打至乳化起泡。"]
+        },
+        { 
+            id: 9, name: "通寧咖啡", icon: "🍸", desc: "微苦氣泡大人味。", 
+            ingredients: ["通寧水", "冰塊"], 
+            recommended: ["東京", "科斯", "尼加拉瓜"],
+            steps: ["杯中裝滿冰塊。", "倒入通寧水至八分滿。", "萃取濃縮咖啡緩慢倒入，保留氣泡口感。"]
+        }
     ];
 
     createApp({
         setup() {
             const system = ref('OL');
             const capsules = ref([]); // [{name: 'xx', expiry: 'date'}]
-            const batchExpiry = ref(''); // 全域日期設定
+            const batchExpiry = ref('');
 
             onMounted(() => {
                 const saved = localStorage.getItem('nespresso_v9');
@@ -217,35 +270,28 @@
 
             const hasCapsule = (name) => capsules.value.some(c => c.name === name);
 
-            // 單點膠囊
             const toggleCapsule = (name) => {
                 const idx = capsules.value.findIndex(c => c.name === name);
                 if (idx > -1) {
                     capsules.value.splice(idx, 1);
                 } else {
-                    // 加入時帶入全域效期
                     capsules.value.push({ name, expiry: batchExpiry.value });
                 }
             };
 
-            // 一鍵加入組合包 (核心功能)
             const addBundle = (bundleName, items) => {
                 let count = 0;
                 items.forEach(name => {
-                    // 先移除舊的(如果有的話)，確保日期被更新為最新的
                     const idx = capsules.value.findIndex(c => c.name === name);
                     if (idx > -1) capsules.value.splice(idx, 1);
-                    
                     capsules.value.push({ name, expiry: batchExpiry.value });
                     count++;
                 });
-                
                 let msg = `✅ 已加入「${bundleName}」組合！`;
                 if (batchExpiry.value) msg += `\n📅 效期已設定為：${batchExpiry.value}`;
                 alert(msg);
             };
 
-            // 加入整類
             const addCategory = (list) => {
                 if(confirm(`確定將 ${list.length} 款膠囊全部加入嗎？`)) {
                     list.forEach(name => {
