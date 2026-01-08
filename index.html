@@ -37,23 +37,28 @@
             border: 2px solid transparent;
         }
         .capsule-btn:active { transform: scale(0.9); }
-        .capsule-btn.active { border-color: #198754; box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.2); transform: scale(1.1); z-index: 1; }
-        .capsule-btn.active::after { content: '✓'; color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-size: 14px; }
+        .capsule-btn.active { border-color: #198754; box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.2); transform: scale(1.05); z-index: 1; }
+        .capsule-btn.active::after { content: '✓'; color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-size: 16px; }
         .capsule-name { font-size: 9px; text-align: center; margin-top: 4px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
         
+        /* 效期紅點 */
+        .expiry-dot { position: absolute; top: 0; right: 0; width: 10px; height: 10px; background: #dc3545; border-radius: 50%; border: 1px solid white; z-index: 2; }
+
         /* 食譜卡片 */
         .recipe-card { border: none; border-radius: 12px; background: white; transition: 0.2s; margin-bottom: 10px; overflow: hidden; }
         .recipe-header { padding: 12px; display: flex; justify-content: space-between; align-items: center; }
         .recipe-body { padding: 0 12px 12px 12px; font-size: 13px; color: #666; }
         .recipe-match { background-color: #e8f5e9; color: #198754; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 5px; }
         
-        /* 快速套裝按鈕 */
-        .quick-group-btn { font-size: 11px; padding: 4px 10px; border-radius: 20px; white-space: nowrap; border: 1px solid #ddd; background: white; color: #555; }
-        .quick-group-btn:active { background: #eee; }
+        /* 組合包按鈕 */
+        .bundle-btn { 
+            font-size: 11px; padding: 6px 12px; border-radius: 8px; white-space: nowrap; 
+            border: 1px solid #dee2e6; background: white; color: #555; 
+            display: flex; align-items: center; gap: 4px;
+        }
+        .bundle-btn:active { background: #e9ecef; transform: scale(0.98); }
+        .bundle-icon { font-size: 14px; }
 
-        /* 效期標籤 (在色票上) */
-        .expiry-dot { position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px; background: #dc3545; border-radius: 50%; border: 1px solid white; }
-        
         .sticky-header { position: sticky; top: 0; z-index: 100; background: rgba(248, 249, 250, 0.95); backdrop-filter: blur(5px); padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.05); }
     </style>
 </head>
@@ -63,36 +68,42 @@
     
     <div class="sticky-header">
         <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-            <h5 class="fw-bold mb-0">☕ 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px;">v9.0</span></h5>
-            <button @click="showSync = !showSync" class="btn btn-sm btn-light text-muted">⚙️ 設定</button>
+            <h5 class="fw-bold mb-0">☕ 膠囊管家 <span class="badge bg-secondary" style="font-size: 10px;">v9.1</span></h5>
+            <button @click="clearAll" class="btn btn-sm btn-link text-danger text-decoration-none" style="font-size: 12px;">清空重設</button>
         </div>
 
         <div class="d-flex justify-content-center mb-2">
-            <div class="btn-group btn-group-sm shadow-sm rounded-pill overflow-hidden">
+            <div class="btn-group btn-group-sm shadow-sm rounded-pill overflow-hidden w-100" style="max-width: 300px;">
                 <button class="btn px-4" :class="system === 'OL' ? 'btn-dark' : 'btn-outline-secondary border-0 bg-white'" @click="system = 'OL'">Original</button>
                 <button class="btn px-4" :class="system === 'VL' ? 'btn-dark' : 'btn-outline-secondary border-0 bg-white'" @click="system = 'VL'">Vertuo</button>
             </div>
         </div>
 
-        <div class="d-flex gap-2 overflow-auto pb-1 px-1" style="scrollbar-width: none;">
-            <button class="quick-group-btn" @click="toggleAll(true)">✅ 全選</button>
-            <button class="quick-group-btn" @click="toggleAll(false)">🗑️ 清空</button>
-            <div style="width: 1px; background: #ddd; margin: 0 4px;"></div>
-            <button class="quick-group-btn" v-for="(list, cat) in currentCapsuleDB" :key="cat" @click="addCategory(list)">
-                ➕ {{ cat.split(' ')[0] }}
+        <div class="input-group input-group-sm mb-2 shadow-sm rounded overflow-hidden">
+            <span class="input-group-text bg-white border-0 text-primary">📅 設定批次效期</span>
+            <input v-model="batchExpiry" type="text" class="form-control border-0 text-center fw-bold text-dark" placeholder="若需紀錄請點此 (選填)" onfocus="(this.type='date')" onblur="(this.value ? this.type='date' : this.type='text')">
+        </div>
+
+        <div class="d-flex gap-2 overflow-auto pb-2 px-1" style="scrollbar-width: none;">
+            <button class="bundle-btn" v-for="(items, name) in currentBundles" :key="name" @click="addBundle(name, items)">
+                <span class="bundle-icon">📦</span> {{ name }}
+            </button>
+            <div style="width: 1px; background: #ddd; margin: 0 2px;"></div>
+            <button class="bundle-btn" v-for="(list, cat) in currentCapsuleDB" :key="cat" @click="addCategory(list)">
+                <span class="bundle-icon">📑</span> {{ cat.split(' ')[0] }}
             </button>
         </div>
     </div>
 
     <div class="mb-4">
-        <small class="text-muted ms-2 mb-1 d-block" style="font-size: 11px;">點擊選取 (綠色=有) / 長按設定效期</small>
         <div class="capsule-grid">
             <div v-for="capName in flatCapsuleList" :key="capName" class="d-flex flex-column align-items-center" style="width: 100%;">
                 <div class="capsule-btn shadow-sm" 
                      :class="{active: hasCapsule(capName)}"
                      :style="{ backgroundColor: getCapsuleColor(capName) }"
                      @click="toggleCapsule(capName)"
-                     @contextmenu.prevent="openExpiryModal(capName)"> <div v-if="getExpiryStatus(capName)" class="expiry-dot"></div>
+                     @contextmenu.prevent="openExpiryModal(capName)">
+                     <div v-if="getExpiryStatus(capName)" class="expiry-dot"></div>
                 </div>
                 <div class="capsule-name">{{ capName }}</div>
             </div>
@@ -103,7 +114,7 @@
         <h6 class="fw-bold px-2 mb-2">🍹 依您的庫存推薦 ({{ matchedRecipes.length }})</h6>
         
         <div v-if="matchedRecipes.length === 0" class="text-center text-muted py-3 small bg-white rounded-3">
-            還沒有完全符合的食譜，再多選幾個口味試試！
+            尚無完全匹配的食譜，請嘗試加入更多口味！
         </div>
 
         <div v-for="recipe in matchedRecipes" :key="recipe.id" class="recipe-card shadow-sm">
@@ -125,24 +136,16 @@
                 <div v-if="getExpiryStatus(recipe.matchCapsule)" class="mt-2 text-danger small fw-bold">
                     ⚠️ 此膠囊設定了效期，請優先飲用！
                 </div>
+                <div class="d-grid mt-2">
+                    <a href="https://tw.shp.ee/pJUMmtp" target="_blank" class="btn btn-sm btn-outline-secondary">去蝦皮補貨</a>
+                </div>
             </div>
         </div>
     </div>
     
     <div v-else class="text-center py-5 text-muted">
         <div style="font-size: 40px; margin-bottom: 10px;">👆</div>
-        請在上方點選您有的膠囊<br>食譜會自動出現！
-    </div>
-
-    <div v-if="showSync" class="card shadow border-0 position-fixed top-50 start-50 translate-middle p-3" style="width: 90%; max-width: 400px; z-index: 1000;">
-        <h5 class="fw-bold mb-3">⚙️ 資料備份</h5>
-        <textarea class="form-control mb-2" rows="3" readonly :value="backupCode" style="font-size: 10px;"></textarea>
-        <button @click="copyBackup" class="btn btn-dark w-100 mb-3">複製備份碼</button>
-        <hr>
-        <h6 class="fw-bold">還原資料</h6>
-        <input v-model="restoreInput" class="form-control mb-2" placeholder="貼上備份碼">
-        <button @click="restoreData" class="btn btn-warning w-100">還原</button>
-        <button @click="showSync = false" class="btn btn-link text-secondary w-100 mt-2">關閉</button>
+        請先設定上方的日期 (選填)<br>然後點擊膠囊或組合包！
     </div>
 
 </div>
@@ -151,7 +154,7 @@
 <script>
     const { createApp, ref, computed, watch, onMounted } = Vue;
 
-    // 資料庫
+    // --- 資料庫 ---
     const CAPSULE_DB = {
         OL: { 
             "義式經典": ["拿波里", "卡薩", "芮斯崔朵", "阿佩奇歐", "羅馬", "威尼斯", "莉梵朵", "卡布里奇歐", "沃魯托", "科斯"], 
@@ -168,6 +171,21 @@
         }
     };
 
+    // --- 熱門組合包 (Bundles) ---
+    const BUNDLES = {
+        OL: {
+            "訂製時光(5條)": ["阿佩奇歐", "巴黎", "哥倫比亞", "開普敦", "東京"],
+            "環遊世界(5條)": ["開普敦", "東京", "斯德哥爾摩", "維也納", "上海"],
+            "義式經典(5條)": ["拿波里", "威尼斯", "羅馬", "阿佩奇歐", "芮斯崔朵"],
+            "大師單品(5條)": ["印度", "印尼", "哥倫比亞", "尼加拉瓜", "依索比亞"]
+        },
+        VL: {
+            "晨間時光(4條)": ["梅絡茲歐", "哥斯大黎加", "雙份-特濃", "雙份-甜味"],
+            "經典大杯(5條)": ["印坦索", "斯托米歐", "奧達奇歐", "梅絡茲歐", "索莉里歐"],
+            "咖啡師特調(3條)": ["甜香草", "金黃焦糖", "烤榛果"]
+        }
+    };
+
     const RECIPES = [
         { id: 1, name: "經典冰拿鐵", icon: "🧊", desc: "冰塊+牛奶+濃縮", ingredients: ["冰塊", "150ml 牛奶"], recommended: ["阿佩奇歐", "雙份-特濃", "羅馬", "拿波里"] },
         { id: 2, name: "西西里氣泡", icon: "🍋", desc: "氣泡水+檸檬+糖", ingredients: ["氣泡水", "檸檬汁", "糖漿"], recommended: ["科斯", "沃魯托", "東京", "索莉里歐"] },
@@ -176,15 +194,15 @@
         { id: 5, name: "熱美式", icon: "☕", desc: "熱水稀釋", ingredients: ["150ml 熱水"], recommended: ["開普敦", "斯托米歐", "奧達奇歐"] },
         { id: 6, name: "燕麥拿鐵", icon: "🌾", desc: "搭配燕麥奶", ingredients: ["燕麥奶"], recommended: ["溫和奇里奧", "特濃可塔朵", "比昂科馥緹"] },
         { id: 7, name: "摩卡咖啡", icon: "🍫", desc: "加巧克力粉", ingredients: ["巧克力粉", "牛奶"], recommended: ["可可松露", "濃醇巧克力", "印坦索"] },
-        { id: 8, name: "防彈咖啡", icon: "🛡️", desc: "加奶油與MCT油", ingredients: ["無鹽奶油", "MCT油"], recommended: ["斯托米歐", "開普敦", "拿波里"] }
+        { id: 8, name: "防彈咖啡", icon: "🛡️", desc: "加奶油與MCT油", ingredients: ["無鹽奶油", "MCT油"], recommended: ["斯托米歐", "開普敦", "拿波里"] },
+        { id: 9, name: "通寧咖啡", icon: "🍸", desc: "通寧水+濃縮", ingredients: ["通寧水", "冰塊"], recommended: ["東京", "科斯", "尼加拉瓜"] }
     ];
 
     createApp({
         setup() {
             const system = ref('OL');
-            const capsules = ref([]); // 格式: [{name: 'xxx', expiry: 'yyyy-mm-dd'}]
-            const showSync = ref(false);
-            const restoreInput = ref('');
+            const capsules = ref([]); // [{name: 'xx', expiry: 'date'}]
+            const batchExpiry = ref(''); // 全域日期設定
 
             onMounted(() => {
                 const saved = localStorage.getItem('nespresso_v9');
@@ -194,23 +212,52 @@
             watch(capsules, (val) => localStorage.setItem('nespresso_v9', JSON.stringify(val)), { deep: true });
 
             const currentCapsuleDB = computed(() => CAPSULE_DB[system.value]);
+            const currentBundles = computed(() => BUNDLES[system.value]);
             const flatCapsuleList = computed(() => Object.values(currentCapsuleDB.value).flat());
 
             const hasCapsule = (name) => capsules.value.some(c => c.name === name);
 
-            // 切換膠囊 (點擊)
+            // 單點膠囊
             const toggleCapsule = (name) => {
                 const idx = capsules.value.findIndex(c => c.name === name);
                 if (idx > -1) {
                     capsules.value.splice(idx, 1);
                 } else {
-                    capsules.value.push({ name, expiry: '' });
+                    // 加入時帶入全域效期
+                    capsules.value.push({ name, expiry: batchExpiry.value });
                 }
             };
 
-            // 長按設定效期
+            // 一鍵加入組合包 (核心功能)
+            const addBundle = (bundleName, items) => {
+                let count = 0;
+                items.forEach(name => {
+                    // 先移除舊的(如果有的話)，確保日期被更新為最新的
+                    const idx = capsules.value.findIndex(c => c.name === name);
+                    if (idx > -1) capsules.value.splice(idx, 1);
+                    
+                    capsules.value.push({ name, expiry: batchExpiry.value });
+                    count++;
+                });
+                
+                let msg = `✅ 已加入「${bundleName}」組合！`;
+                if (batchExpiry.value) msg += `\n📅 效期已設定為：${batchExpiry.value}`;
+                alert(msg);
+            };
+
+            // 加入整類
+            const addCategory = (list) => {
+                if(confirm(`確定將 ${list.length} 款膠囊全部加入嗎？`)) {
+                    list.forEach(name => {
+                        if (!hasCapsule(name)) capsules.value.push({ name, expiry: batchExpiry.value });
+                    });
+                }
+            };
+
+            const clearAll = () => { if(confirm('確定清空？')) capsules.value = []; };
+
             const openExpiryModal = (name) => {
-                const date = prompt(`設定「${name}」的效期 (YYYY-MM-DD)\n留空則清除`, "");
+                const date = prompt(`設定「${name}」的效期 (YYYY-MM-DD)`, "");
                 if (date !== null) {
                     const cap = capsules.value.find(c => c.name === name);
                     if (cap) cap.expiry = date;
@@ -223,26 +270,12 @@
                 return cap && cap.expiry ? true : false;
             };
 
-            // 快速套裝按鈕
-            const addCategory = (list) => {
-                list.forEach(name => {
-                    if (!hasCapsule(name)) capsules.value.push({ name, expiry: '' });
-                });
-            };
-            const toggleAll = (add) => {
-                if (add) addCategory(flatCapsuleList.value);
-                else capsules.value = capsules.value.filter(c => !flatCapsuleList.value.includes(c.name));
-            };
-
-            // 配對食譜
             const matchedRecipes = computed(() => {
-                // 找出可以做的食譜
                 const available = RECIPES.map(r => {
                     const match = r.recommended.find(recName => hasCapsule(recName));
                     return match ? { ...r, matchCapsule: match } : null;
                 }).filter(r => r !== null);
                 
-                // 優先顯示有效期的膠囊對應食譜
                 return available.sort((a, b) => {
                     const aHasExpiry = getExpiryStatus(a.matchCapsule);
                     const bHasExpiry = getExpiryStatus(b.matchCapsule);
@@ -250,7 +283,6 @@
                 });
             });
 
-            // 顏色邏輯 (簡化版)
             const getCapsuleColor = (name) => {
                 if(name.includes('阿佩奇歐')) return '#382554';
                 if(name.includes('拿波里') || name.includes('芮斯崔朵')) return '#222';
@@ -259,23 +291,14 @@
                 if(name.includes('可可') || name.includes('巧克力')) return '#483d8b';
                 if(name.includes('焦糖')) return '#b8860b';
                 if(name.includes('香草')) return '#f5deb3';
-                if(name.includes('東京')) return '#e6e6fa'; // 淡紫
+                if(name.includes('東京')) return '#e6e6fa';
                 if(name.includes('開普敦')) return '#cd853f';
                 if(name.includes('斯德哥爾摩')) return '#006400';
-                return '#888'; // 預設灰
+                if(name.includes('巴黎')) return '#444';
+                return '#999';
             };
 
-            // 備份功能
-            const backupCode = computed(() => btoa(encodeURIComponent(JSON.stringify(capsules.value))));
-            const copyBackup = () => navigator.clipboard.writeText(backupCode.value).then(() => alert('已複製!'));
-            const restoreData = () => {
-                try {
-                    capsules.value = JSON.parse(decodeURIComponent(atob(restoreInput.value)));
-                    alert('還原成功!'); showSync.value = false;
-                } catch(e) { alert('無效代碼'); }
-            };
-
-            return { system, capsules, currentCapsuleDB, flatCapsuleList, hasCapsule, toggleCapsule, openExpiryModal, getExpiryStatus, addCategory, toggleAll, matchedRecipes, getCapsuleColor, showSync, backupCode, copyBackup, restoreData, restoreInput };
+            return { system, capsules, currentCapsuleDB, currentBundles, flatCapsuleList, hasCapsule, toggleCapsule, openExpiryModal, getExpiryStatus, addCategory, addBundle, matchedRecipes, getCapsuleColor, batchExpiry, clearAll };
         }
     }).mount('#app');
 </script>
